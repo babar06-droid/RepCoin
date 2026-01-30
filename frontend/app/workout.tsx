@@ -465,37 +465,34 @@ export default function WorkoutScreen() {
 
         {/* Bottom controls */}
         <View style={[styles.bottomControls, { paddingBottom: insets.bottom + 20 }]}>
-          {/* Manual rep button */}
-          <TouchableOpacity
-            style={styles.manualRepButton}
-            onPress={handleManualRep}
-          >
-            <Ionicons name="add" size={32} color="#FFF" />
-            <Text style={styles.manualRepText}>TAP FOR REP</Text>
-          </TouchableOpacity>
-
-          {/* Start/Stop button */}
-          <TouchableOpacity
-            style={[
-              styles.trackingButton,
-              isTracking && styles.trackingButtonActive,
-            ]}
-            onPress={toggleTracking}
-          >
-            <Ionicons
-              name={isTracking ? 'pause' : 'play'}
-              size={40}
-              color="#000"
-            />
-          </TouchableOpacity>
-
           {/* End workout button */}
           <TouchableOpacity
             style={styles.endButton}
             onPress={endWorkout}
           >
-            <Ionicons name="stop" size={32} color="#FF4444" />
+            <Ionicons name="stop" size={28} color="#FF4444" />
             <Text style={styles.endButtonText}>END</Text>
+          </TouchableOpacity>
+
+          {/* Main TAP FOR REP button - now the primary action */}
+          <TouchableOpacity
+            style={styles.mainRepButton}
+            onPress={handleManualRep}
+            activeOpacity={0.7}
+          >
+            <View style={styles.mainRepButtonInner}>
+              <Ionicons name="add-circle" size={48} color="#000" />
+              <Text style={styles.mainRepButtonText}>TAP FOR REP</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Camera flip button */}
+          <TouchableOpacity
+            style={styles.flipButton}
+            onPress={toggleCameraFacing}
+          >
+            <Ionicons name="camera-reverse" size={28} color="#FFF" />
+            <Text style={styles.flipButtonText}>FLIP</Text>
           </TouchableOpacity>
         </View>
       </CameraView>
