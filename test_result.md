@@ -101,3 +101,132 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: Build a fitness app called Rep Coin that uses AI to track push-ups and sit-ups from the phone's camera. Each rep rewards the user with a cha-ching sound and a coin animation flying into their wallet. Coins represent cryptocurrency earned through exercise.
+
+backend:
+  - task: "GET /api/ - Root endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Returns Rep Coin API message"
+
+  - task: "POST /api/reps - Create rep record"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Successfully creates rep records with exercise_type and coins_earned"
+
+  - task: "GET /api/reps - Get all reps"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Returns list of all reps sorted by timestamp"
+
+  - task: "POST /api/sessions - Create workout session"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Successfully creates session records"
+
+  - task: "GET /api/sessions - Get all sessions"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Returns list of sessions sorted by timestamp"
+
+  - task: "GET /api/wallet - Get wallet summary"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Returns aggregated wallet data with total_coins, total_pushups, total_situps, sessions_count"
+
+frontend:
+  - task: "Home screen with branding and navigation"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Beautiful home screen with Rep Coin branding, animated coin logo, and navigation buttons"
+
+  - task: "Workout screen with camera and rep tracking"
+    implemented: true
+    working: NA
+    file: "/app/frontend/app/workout.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: NA
+        agent: "main"
+        comment: "Camera view, exercise selector, rep counter, coin animations, manual rep button - needs device testing"
+
+  - task: "Wallet screen with balance and history"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/wallet.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Shows total balance, stats cards, recent sessions list"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Backend API endpoints verification"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "Initial implementation of Rep Coin app complete. Backend APIs tested with curl and working. Frontend screens implemented with home, workout, and wallet pages. Ready for backend testing agent to verify all endpoints."
