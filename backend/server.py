@@ -10,6 +10,7 @@ from typing import List, Optional
 import uuid
 from datetime import datetime
 import base64
+from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
 
 
 ROOT_DIR = Path(__file__).parent
@@ -19,6 +20,9 @@ load_dotenv(ROOT_DIR / '.env')
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
+
+# LLM Key
+EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -71,10 +75,96 @@ class WalletData(BaseModel):
     sessions_count: int = 0
 
 
+# Pose analysis models
+class PoseAnalysisRequest(BaseModel):
+    image_base64: str
+    exercise_type: str = "pushup"
+
+class PoseAnalysisResponse(BaseModel):
+    position: str  # "up", "down", or "unknown"
+    confidence: str  # "high", "medium", "low"
+    message: str
+
+
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
 async def root():
     return {"message": "Rep Coin API - Earn While You Burn!"}
+
+
+# Pose analysis endpoint - AI Vision
+@api_router.post("/analyze-pose", response_model=PoseAnalysisResponse)
+async def analyze_pose(request: PoseAnalysisRequest):
+    try:
+        if not EMERGENT_LLM_KEY:
+            return PoseAnalysisResponse(
+                position="unknown",
+                confidence="low",
+                message="AI key not configured"
+            )
+
+        # Create chat instance for vision analysis
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"pose-{uuid.uuid4()}",
+            system_message="""You are a fitness pose analyzer. Your ONLY job is to determine if a person is in the UP or DOWN position of an exercise.
+
+For PUSH-UPS:
+- UP position: Arms extended, body high off the ground
+- DOWN position: Arms bent, chest close to ground
+
+For SIT-UPS:
+- UP position: Torso upright, sitting up
+- DOWN position: Back flat on ground, lying down
+
+Respond with ONLY one word: "up" or "down" or "unknown" if you can't determine the position."""
+        ).with_model("gemini", "gemini-2.0-flash")
+
+        # Clean base64 string
+        image_data = request.image_base64
+        if ',' in image_data:
+            image_data = image_data.split(',')[1]
+
+        # Create image content
+        image_content = ImageContent(image_base64=image_data)
+
+        # Create message
+        prompt = f"What position is this person in for a {request.exercise_type}? Reply with only: up, down, or unknown"
+        
+        user_message = UserMessage(
+            text=prompt,
+            image_contents=[image_content]
+        )
+
+        # Get response
+        response = await chat.send_message(user_message)
+        
+        # Parse response
+        response_lower = response.strip().lower()
+        
+        if "up" in response_lower:
+            position = "up"
+            confidence = "high"
+        elif "down" in response_lower:
+            position = "down"
+            confidence = "high"
+        else:
+            position = "unknown"
+            confidence = "low"
+
+        return PoseAnalysisResponse(
+            position=position,
+            confidence=confidence,
+            message=f"Detected {position} position"
+        )
+
+    except Exception as e:
+        logging.error(f"Pose analysis error: {e}")
+        return PoseAnalysisResponse(
+            position="unknown",
+            confidence="low",
+            message=str(e)
+        )
 
 
 # Status endpoints
