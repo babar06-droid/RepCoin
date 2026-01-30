@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -6,7 +6,7 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
 import uuid
 from datetime import datetime
 
@@ -35,11 +35,48 @@ class StatusCheck(BaseModel):
 class StatusCheckCreate(BaseModel):
     client_name: str
 
+
+# Rep tracking models
+class Rep(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    exercise_type: str  # 'pushup' or 'situp'
+    coins_earned: int = 1
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+class RepCreate(BaseModel):
+    exercise_type: str
+    coins_earned: int = 1
+
+
+# Session models
+class WorkoutSession(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    pushups: int = 0
+    situps: int = 0
+    total_coins: int = 0
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+class WorkoutSessionCreate(BaseModel):
+    pushups: int = 0
+    situps: int = 0
+    total_coins: int = 0
+
+
+# Wallet model
+class WalletData(BaseModel):
+    total_coins: int = 0
+    total_pushups: int = 0
+    total_situps: int = 0
+    sessions_count: int = 0
+
+
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Rep Coin API - Earn While You Burn!"}
 
+
+# Status endpoints
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
     status_dict = input.dict()
@@ -51,6 +88,60 @@ async def create_status_check(input: StatusCheckCreate):
 async def get_status_checks():
     status_checks = await db.status_checks.find().to_list(1000)
     return [StatusCheck(**status_check) for status_check in status_checks]
+
+
+# Rep tracking endpoints
+@api_router.post("/reps", response_model=Rep)
+async def create_rep(input: RepCreate):
+    rep_dict = input.dict()
+    rep_obj = Rep(**rep_dict)
+    _ = await db.reps.insert_one(rep_obj.dict())
+    return rep_obj
+
+@api_router.get("/reps", response_model=List[Rep])
+async def get_reps():
+    reps = await db.reps.find().sort("timestamp", -1).to_list(1000)
+    return [Rep(**rep) for rep in reps]
+
+
+# Session endpoints
+@api_router.post("/sessions", response_model=WorkoutSession)
+async def create_session(input: WorkoutSessionCreate):
+    session_dict = input.dict()
+    session_obj = WorkoutSession(**session_dict)
+    _ = await db.sessions.insert_one(session_obj.dict())
+    return session_obj
+
+@api_router.get("/sessions", response_model=List[WorkoutSession])
+async def get_sessions():
+    sessions = await db.sessions.find().sort("timestamp", -1).to_list(100)
+    return [WorkoutSession(**session) for session in sessions]
+
+
+# Wallet endpoint - aggregates all data
+@api_router.get("/wallet", response_model=WalletData)
+async def get_wallet():
+    # Count total reps by type
+    pushup_count = await db.reps.count_documents({"exercise_type": "pushup"})
+    situp_count = await db.reps.count_documents({"exercise_type": "situp"})
+    
+    # Total coins from all reps
+    total_coins_pipeline = [
+        {"$group": {"_id": None, "total": {"$sum": "$coins_earned"}}}
+    ]
+    coins_result = await db.reps.aggregate(total_coins_pipeline).to_list(1)
+    total_coins = coins_result[0]["total"] if coins_result else 0
+    
+    # Count sessions
+    sessions_count = await db.sessions.count_documents({})
+    
+    return WalletData(
+        total_coins=total_coins,
+        total_pushups=pushup_count,
+        total_situps=situp_count,
+        sessions_count=sessions_count
+    )
+
 
 # Include the router in the main app
 app.include_router(api_router)
