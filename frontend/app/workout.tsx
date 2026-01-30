@@ -56,15 +56,16 @@ export default function WorkoutScreen() {
   const poseTimerRef = useRef<NodeJS.Timeout | null>(null);
   const frameCountRef = useRef(0);
 
+  // Sound loaded state
+  const [soundLoaded, setSoundLoaded] = useState(false);
+  const chachingSoundRef = useRef<Audio.Sound | null>(null);
+
   // Load sound effect on mount
   useEffect(() => {
     loadSound();
     return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
-      if (poseTimerRef.current) {
-        clearInterval(poseTimerRef.current);
+      if (chachingSoundRef.current) {
+        chachingSoundRef.current.unloadAsync();
       }
     };
   }, []);
@@ -74,28 +75,56 @@ export default function WorkoutScreen() {
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
         staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
       });
+      
+      // Preload cha-ching sound from reliable source
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: 'https://assets.mixkit.co/active_storage/sfx/2058/2058-preview.mp3' },
+        { shouldPlay: false, volume: 1.0 }
+      );
+      chachingSoundRef.current = sound;
+      setSoundLoaded(true);
+      console.log('Cha-ching sound loaded successfully');
     } catch (error) {
-      console.log('Error setting audio mode:', error);
+      console.log('Error loading sound:', error);
+      // Try alternative sound source
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: 'https://cdn.freesound.org/previews/352/352661_5121236-lq.mp3' },
+          { shouldPlay: false, volume: 1.0 }
+        );
+        chachingSoundRef.current = sound;
+        setSoundLoaded(true);
+        console.log('Alternative cha-ching sound loaded');
+      } catch (err) {
+        console.log('Could not load any sound:', err);
+      }
     }
   };
 
   // Play cha-ching sound
   const playChaChing = async () => {
     try {
-      // Create a short beep/ding sound effect simulation
-      // In production, you'd load a real cha-ching audio file
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav' },
-        { shouldPlay: true, volume: 1.0 }
-      );
-      soundRef.current = sound;
-      
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          sound.unloadAsync();
-        }
-      });
+      if (chachingSoundRef.current && soundLoaded) {
+        // Rewind and play
+        await chachingSoundRef.current.setPositionAsync(0);
+        await chachingSoundRef.current.playAsync();
+        console.log('Playing cha-ching sound');
+      } else {
+        // Fallback: try to create and play immediately
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: 'https://assets.mixkit.co/active_storage/sfx/2058/2058-preview.mp3' },
+          { shouldPlay: true, volume: 1.0 }
+        );
+        // Clean up after playing
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            sound.unloadAsync();
+          }
+        });
+      }
     } catch (error) {
       console.log('Error playing sound:', error);
     }
