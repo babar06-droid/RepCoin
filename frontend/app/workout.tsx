@@ -7,13 +7,14 @@ import {
   Dimensions,
   Animated,
   Vibration,
-  Pressable,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Audio } from 'expo-av';
+import { LightSensor, Accelerometer } from 'expo-sensors';
 
 const { width, height } = Dimensions.get('window');
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
@@ -41,24 +42,51 @@ export default function WorkoutScreen() {
   const [sessionStats, setSessionStats] = useState({ pushups: 0, situps: 0 });
   const [isTracking, setIsTracking] = useState(false);
   const [statusMessage, setStatusMessage] = useState('Press START');
-  const [isPressed, setIsPressed] = useState(false);
+  const [lightLevel, setLightLevel] = useState<number | null>(null);
+  const [sensorType, setSensorType] = useState<'light' | 'motion' | 'none'>('none');
 
   const coinIdRef = useRef(0);
   const chachingSoundRef = useRef<Audio.Sound | null>(null);
   const repScale = useRef(new Animated.Value(1)).current;
   const walletScale = useRef(new Animated.Value(1)).current;
-  const pressScale = useRef(new Animated.Value(1)).current;
 
-  // Rep tracking
+  // Sensor refs
+  const lightSubRef = useRef<any>(null);
+  const accelSubRef = useRef<any>(null);
   const lastRepTimeRef = useRef(0);
-  const pressStartTimeRef = useRef(0);
+  
+  // Light-based detection
+  const baselineLightRef = useRef<number | null>(null);
+  const lightHistoryRef = useRef<number[]>([]);
+  const wasBlockedRef = useRef(false);
+  
+  // Motion-based detection (fallback)
+  const motionHistoryRef = useRef<number[]>([]);
+  const motionBaselineRef = useRef<number | null>(null);
+  const wasMovingRef = useRef(false);
 
   useEffect(() => {
+    checkSensors();
     loadSound();
     return () => {
+      stopTracking();
       if (chachingSoundRef.current) chachingSoundRef.current.unloadAsync();
     };
   }, []);
+
+  const checkSensors = async () => {
+    // Check if light sensor is available (Android only typically)
+    const lightAvailable = await LightSensor.isAvailableAsync();
+    const accelAvailable = await Accelerometer.isAvailableAsync();
+    
+    if (lightAvailable) {
+      setSensorType('light');
+    } else if (accelAvailable) {
+      setSensorType('motion');
+    } else {
+      setSensorType('none');
+    }
+  };
 
   const loadSound = async () => {
     try {
@@ -121,7 +149,7 @@ export default function WorkoutScreen() {
 
   const countRep = useCallback(() => {
     const now = Date.now();
-    if (now - lastRepTimeRef.current < 300) return;
+    if (now - lastRepTimeRef.current < 500) return;
     lastRepTimeRef.current = now;
 
     setRepCount((prev) => prev + 1);
@@ -140,6 +168,8 @@ export default function WorkoutScreen() {
     playChaChing();
     animateCoin();
     saveRepToBackend();
+    setStatusMessage('💰 REP COUNTED!');
+    setTimeout(() => setStatusMessage('Keep going...'), 500);
   }, [exerciseType]);
 
   const saveRepToBackend = async () => {
@@ -152,44 +182,121 @@ export default function WorkoutScreen() {
     } catch (error) {}
   };
 
-  // Press and release detection for reps
-  const handlePressIn = () => {
-    if (!isTracking) return;
-    setIsPressed(true);
-    pressStartTimeRef.current = Date.now();
-    setStatusMessage('⬇️ DOWN - Hold...');
+  const startLightTracking = () => {
+    setStatusMessage('Calibrating light...');
+    baselineLightRef.current = null;
+    lightHistoryRef.current = [];
+    wasBlockedRef.current = false;
+
+    LightSensor.setUpdateInterval(50);
     
-    Animated.timing(pressScale, { toValue: 0.95, duration: 100, useNativeDriver: true }).start();
+    let calibrationSamples: number[] = [];
+
+    lightSubRef.current = LightSensor.addListener(({ illuminance }) => {
+      setLightLevel(illuminance);
+      
+      // Calibration phase
+      if (baselineLightRef.current === null) {
+        calibrationSamples.push(illuminance);
+        if (calibrationSamples.length >= 30) {
+          baselineLightRef.current = calibrationSamples.reduce((a, b) => a + b, 0) / calibrationSamples.length;
+          setStatusMessage('GO! Start your reps');
+        }
+        return;
+      }
+
+      // Track light history
+      lightHistoryRef.current.push(illuminance);
+      if (lightHistoryRef.current.length > 10) lightHistoryRef.current.shift();
+
+      const avgLight = lightHistoryRef.current.reduce((a, b) => a + b, 0) / lightHistoryRef.current.length;
+      const baseline = baselineLightRef.current;
+      
+      // Detect light blocked (body over phone) - typically 30%+ drop
+      const dropThreshold = baseline * 0.7; // 30% drop
+      const returnThreshold = baseline * 0.85; // Within 15% of baseline
+
+      if (!wasBlockedRef.current && avgLight < dropThreshold) {
+        // Light blocked - going DOWN
+        wasBlockedRef.current = true;
+        setStatusMessage('⬇️ DOWN detected');
+      } else if (wasBlockedRef.current && avgLight > returnThreshold) {
+        // Light returned - going UP = REP!
+        wasBlockedRef.current = false;
+        countRep();
+      }
+    });
   };
 
-  const handlePressOut = () => {
-    if (!isTracking || !isPressed) return;
-    setIsPressed(false);
+  const startMotionTracking = () => {
+    setStatusMessage('Calibrating motion...');
+    motionBaselineRef.current = null;
+    motionHistoryRef.current = [];
+    wasMovingRef.current = false;
+
+    Accelerometer.setUpdateInterval(50);
     
-    const pressDuration = Date.now() - pressStartTimeRef.current;
-    
-    // Only count if held for at least 200ms (real rep)
-    if (pressDuration >= 200) {
-      setStatusMessage('⬆️ UP - REP!');
-      countRep();
-      setTimeout(() => setStatusMessage('Touch screen when going DOWN'), 500);
-    } else {
-      setStatusMessage('Hold longer for rep');
-      setTimeout(() => setStatusMessage('Touch screen when going DOWN'), 1000);
-    }
-    
-    Animated.timing(pressScale, { toValue: 1, duration: 100, useNativeDriver: true }).start();
+    let calibrationSamples: number[] = [];
+
+    accelSubRef.current = Accelerometer.addListener(({ x, y, z }) => {
+      const magnitude = Math.sqrt(x * x + y * y + z * z);
+      
+      // Calibration phase
+      if (motionBaselineRef.current === null) {
+        calibrationSamples.push(magnitude);
+        if (calibrationSamples.length >= 30) {
+          motionBaselineRef.current = calibrationSamples.reduce((a, b) => a + b, 0) / calibrationSamples.length;
+          setStatusMessage('GO! Start your reps');
+        }
+        return;
+      }
+
+      // Track motion history
+      motionHistoryRef.current.push(magnitude);
+      if (motionHistoryRef.current.length > 10) motionHistoryRef.current.shift();
+
+      const avgMotion = motionHistoryRef.current.reduce((a, b) => a + b, 0) / motionHistoryRef.current.length;
+      const baseline = motionBaselineRef.current;
+      const deviation = Math.abs(avgMotion - baseline);
+
+      // Detect significant motion
+      const motionThreshold = 0.05;
+      const restThreshold = 0.02;
+
+      if (!wasMovingRef.current && deviation > motionThreshold) {
+        // Started moving
+        wasMovingRef.current = true;
+        setStatusMessage('⬇️ Movement detected');
+      } else if (wasMovingRef.current && deviation < restThreshold) {
+        // Returned to rest = REP!
+        wasMovingRef.current = false;
+        countRep();
+      }
+    });
   };
 
   const startTracking = () => {
     setIsTracking(true);
-    setStatusMessage('Touch screen when going DOWN');
+    
+    if (sensorType === 'light') {
+      startLightTracking();
+    } else {
+      startMotionTracking();
+    }
   };
 
   const stopTracking = () => {
     setIsTracking(false);
     setStatusMessage('Press START');
-    setIsPressed(false);
+    
+    if (lightSubRef.current) {
+      lightSubRef.current.remove();
+      lightSubRef.current = null;
+    }
+    if (accelSubRef.current) {
+      accelSubRef.current.remove();
+      accelSubRef.current = null;
+    }
   };
 
   const toggleTracking = () => {
@@ -244,28 +351,6 @@ export default function WorkoutScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <CameraView style={styles.camera} facing={facing}>
-        {/* Touch area for rep detection */}
-        {isTracking && (
-          <Pressable 
-            style={styles.touchArea}
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOut}
-          >
-            <Animated.View style={[styles.touchIndicator, { 
-              transform: [{ scale: pressScale }],
-              backgroundColor: isPressed ? 'rgba(255, 107, 107, 0.4)' : 'rgba(76, 175, 80, 0.2)',
-              borderColor: isPressed ? '#FF6B6B' : '#4CAF50',
-            }]}>
-              <Text style={styles.touchText}>
-                {isPressed ? '⬇️ HOLD' : '👆 TOUCH HERE'}
-              </Text>
-              <Text style={styles.touchSubtext}>
-                {isPressed ? 'Release when coming UP' : 'Press when going DOWN'}
-              </Text>
-            </Animated.View>
-          </Pressable>
-        )}
-
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
           <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
@@ -278,6 +363,18 @@ export default function WorkoutScreen() {
           <TouchableOpacity style={styles.headerButton} onPress={toggleCameraFacing}>
             <Ionicons name="camera-reverse" size={24} color="#FFF" />
           </TouchableOpacity>
+        </View>
+
+        {/* Sensor indicator */}
+        <View style={styles.sensorBadge}>
+          <Ionicons 
+            name={sensorType === 'light' ? 'sunny' : sensorType === 'motion' ? 'speedometer' : 'alert-circle'} 
+            size={16} 
+            color={sensorType !== 'none' ? '#4CAF50' : '#FF6B6B'} 
+          />
+          <Text style={[styles.sensorText, { color: sensorType !== 'none' ? '#4CAF50' : '#FF6B6B' }]}>
+            {sensorType === 'light' ? 'Light Sensor' : sensorType === 'motion' ? 'Motion Sensor' : 'No Sensor'}
+          </Text>
         </View>
 
         {/* Exercise selector */}
@@ -305,10 +402,32 @@ export default function WorkoutScreen() {
             <Text style={styles.repLabel}>REPS</Text>
           </Animated.View>
           
-          <View style={[styles.statusBadge, isPressed && styles.statusBadgeDown]}>
+          <View style={styles.statusBadge}>
             <Text style={styles.statusText}>{statusMessage}</Text>
           </View>
+
+          {/* Light level display */}
+          {isTracking && lightLevel !== null && (
+            <Text style={styles.lightDisplay}>Light: {Math.round(lightLevel)} lux</Text>
+          )}
         </View>
+
+        {/* Instructions */}
+        {isTracking && (
+          <View style={styles.instructionBox}>
+            {sensorType === 'light' ? (
+              <>
+                <Text style={styles.instructionTitle}>📱 Place phone on floor facing UP</Text>
+                <Text style={styles.instructionText}>Your body will block light when going down</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.instructionTitle}>📱 Hold phone or place nearby</Text>
+                <Text style={styles.instructionText}>Motion will be detected automatically</Text>
+              </>
+            )}
+          </View>
+        )}
 
         {/* Coin animations */}
         {coinAnimations.map((coin) => (
@@ -351,33 +470,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0a0a0a' },
   camera: { flex: 1 },
   loadingText: { color: '#FFF', fontSize: 18, textAlign: 'center', marginTop: 100 },
-  touchArea: {
-    position: 'absolute',
-    top: height * 0.35,
-    left: 20,
-    right: 20,
-    height: height * 0.25,
-    zIndex: 20,
-  },
-  touchIndicator: {
-    flex: 1,
-    borderRadius: 30,
-    borderWidth: 4,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  touchText: {
-    color: '#FFF',
-    fontSize: 28,
-    fontWeight: 'bold',
-  },
-  touchSubtext: {
-    color: '#FFF',
-    fontSize: 14,
-    marginTop: 8,
-    opacity: 0.8,
-  },
   header: {
     position: 'absolute', top: 0, left: 0, right: 0,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
@@ -393,9 +485,15 @@ const styles = StyleSheet.create({
     borderRadius: 40, borderWidth: 4, borderColor: '#FFD700',
   },
   walletCoins: { color: '#FFD700', fontSize: 32, fontWeight: 'bold', marginLeft: 12 },
+  sensorBadge: {
+    position: 'absolute', top: 80, alignSelf: 'center',
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.8)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
+  },
+  sensorText: { fontSize: 12, fontWeight: '600', marginLeft: 6 },
   exerciseSelector: {
-    position: 'absolute', top: 100, left: 16, right: 16,
-    flexDirection: 'row', justifyContent: 'center', gap: 12, zIndex: 10,
+    position: 'absolute', top: 120, left: 16, right: 16,
+    flexDirection: 'row', justifyContent: 'center', gap: 12,
   },
   exerciseButton: {
     flexDirection: 'row', alignItems: 'center',
@@ -405,23 +503,28 @@ const styles = StyleSheet.create({
   exerciseButtonActive: { backgroundColor: '#FFD700', borderColor: '#FFD700' },
   exerciseButtonText: { color: '#FFF', marginLeft: 8, fontWeight: '700', fontSize: 16 },
   exerciseButtonTextActive: { color: '#000' },
-  repDisplay: { position: 'absolute', top: height * 0.12, alignSelf: 'center', alignItems: 'center', zIndex: 5 },
+  repDisplay: { position: 'absolute', top: height * 0.2, alignSelf: 'center', alignItems: 'center' },
   repCounter: {
-    width: 160, height: 160, borderRadius: 80,
-    backgroundColor: 'rgba(0,0,0,0.9)', borderWidth: 6, borderColor: '#FFD700',
+    width: 170, height: 170, borderRadius: 85,
+    backgroundColor: 'rgba(0,0,0,0.9)', borderWidth: 7, borderColor: '#FFD700',
     alignItems: 'center', justifyContent: 'center',
   },
-  repNumber: { fontSize: 80, fontWeight: 'bold', color: '#FFD700' },
-  repLabel: { fontSize: 18, color: '#888', marginTop: -8, fontWeight: '700' },
+  repNumber: { fontSize: 85, fontWeight: 'bold', color: '#FFD700' },
+  repLabel: { fontSize: 20, color: '#888', marginTop: -10, fontWeight: '700' },
   statusBadge: {
-    marginTop: 16, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 25,
+    marginTop: 20, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 25,
     backgroundColor: '#4CAF50',
   },
-  statusBadgeDown: {
-    backgroundColor: '#FF6B6B',
+  statusText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+  lightDisplay: { color: '#888', fontSize: 12, marginTop: 10 },
+  instructionBox: {
+    position: 'absolute', top: height * 0.52, alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.85)', padding: 16, borderRadius: 16,
+    maxWidth: width - 40,
   },
-  statusText: { color: '#FFF', fontSize: 14, fontWeight: '800' },
-  flyingCoin: { position: 'absolute', top: height * 0.4, alignSelf: 'center', zIndex: 100 },
+  instructionTitle: { color: '#FFD700', fontSize: 14, fontWeight: 'bold', marginBottom: 4 },
+  instructionText: { color: '#FFF', fontSize: 13 },
+  flyingCoin: { position: 'absolute', top: height * 0.42, alignSelf: 'center', zIndex: 100 },
   coinIcon: {
     width: 100, height: 100, borderRadius: 50,
     backgroundColor: '#FFD700', alignItems: 'center', justifyContent: 'center',
