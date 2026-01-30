@@ -243,15 +243,6 @@ export default function WorkoutScreen() {
     onRepCompleted();
   };
 
-  // Start/stop tracking - now just toggles ready state
-  const toggleTracking = () => {
-    setIsTracking(!isTracking);
-    // Reset pose phase when starting
-    if (!isTracking) {
-      setPosePhase('up');
-    }
-  };
-
   // Toggle camera facing
   const toggleCameraFacing = () => {
     setFacing((prev) => (prev === 'front' ? 'back' : 'front'));
