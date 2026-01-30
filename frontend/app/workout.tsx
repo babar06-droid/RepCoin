@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
+  Vibration,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,11 +29,6 @@ interface CoinAnimation {
   scale: Animated.Value;
 }
 
-// Rep detection thresholds
-const PUSHUP_THRESHOLD = 0.3; // Acceleration change threshold
-const SITUP_THRESHOLD = 0.4;
-const MIN_REP_TIME = 800; // Minimum time between reps in ms (prevents double counting)
-
 export default function WorkoutScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -46,26 +42,29 @@ export default function WorkoutScreen() {
   const [coinAnimations, setCoinAnimations] = useState<CoinAnimation[]>([]);
   const [sessionStats, setSessionStats] = useState({ pushups: 0, situps: 0 });
   const [isTracking, setIsTracking] = useState(false);
-  const [repPhase, setRepPhase] = useState<'ready' | 'down' | 'up'>('ready');
+  const [motionStatus, setMotionStatus] = useState<string>('Press START');
 
-  // Sound refs
+  // Refs
   const coinIdRef = useRef(0);
   const chachingSoundRef = useRef<Audio.Sound | null>(null);
-  const [soundLoaded, setSoundLoaded] = useState(false);
-
-  // Animation values
   const repScale = useRef(new Animated.Value(1)).current;
   const walletScale = useRef(new Animated.Value(1)).current;
   const buttonPulse = useRef(new Animated.Value(1)).current;
 
-  // Accelerometer tracking
-  const lastRepTimeRef = useRef(0);
-  const baselineRef = useRef({ x: 0, y: 0, z: 0 });
-  const phaseRef = useRef<'neutral' | 'down' | 'up'>('neutral');
-  const peakValueRef = useRef(0);
+  // Motion detection refs
   const subscriptionRef = useRef<any>(null);
+  const lastRepTimeRef = useRef(0);
+  const motionHistoryRef = useRef<number[]>([]);
+  const peakDetectedRef = useRef(false);
+  const valleyDetectedRef = useRef(false);
+  const lastValueRef = useRef(0);
+  const smoothedValueRef = useRef(0);
 
-  // Load sound effect on mount
+  // Constants for motion detection
+  const MIN_REP_INTERVAL = 600; // Minimum ms between reps
+  const MOTION_THRESHOLD = 0.15; // Sensitivity threshold
+  const HISTORY_SIZE = 10; // Smoothing window
+
   useEffect(() => {
     loadSound();
     return () => {
@@ -76,21 +75,13 @@ export default function WorkoutScreen() {
     };
   }, []);
 
-  // Button pulse animation when tracking
+  // Pulse animation when tracking
   useEffect(() => {
     if (isTracking) {
       Animated.loop(
         Animated.sequence([
-          Animated.timing(buttonPulse, {
-            toValue: 1.1,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(buttonPulse, {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true,
-          }),
+          Animated.timing(buttonPulse, { toValue: 1.08, duration: 600, useNativeDriver: true }),
+          Animated.timing(buttonPulse, { toValue: 1, duration: 600, useNativeDriver: true }),
         ])
       ).start();
     } else {
@@ -104,242 +95,185 @@ export default function WorkoutScreen() {
         playsInSilentModeIOS: true,
         staysActiveInBackground: false,
         shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
       });
       
-      // Load a crisp cha-ching/coin sound
+      // Load the cha-ching sound from assets
       const { sound } = await Audio.Sound.createAsync(
-        { uri: 'https://assets.mixkit.co/active_storage/sfx/888/888-preview.mp3' },
+        require('../assets/sounds/chaching.mp3'),
         { shouldPlay: false, volume: 1.0 }
       );
       chachingSoundRef.current = sound;
-      setSoundLoaded(true);
-      console.log('Cha-ching sound loaded successfully');
+      console.log('Cha-ching sound loaded!');
     } catch (error) {
-      console.log('Error loading primary sound, trying backup:', error);
+      console.log('Error loading sound from assets, trying URL:', error);
       try {
-        // Backup: coin drop sound
+        // Fallback to online sound
         const { sound } = await Audio.Sound.createAsync(
-          { uri: 'https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3' },
+          { uri: 'https://www.myinstants.com/media/sounds/cha-ching.mp3' },
           { shouldPlay: false, volume: 1.0 }
         );
         chachingSoundRef.current = sound;
-        setSoundLoaded(true);
-        console.log('Backup sound loaded');
       } catch (err) {
-        console.log('Could not load sounds:', err);
+        console.log('Could not load sound:', err);
       }
     }
   };
 
-  // Play cha-ching sound
   const playChaChing = async () => {
     try {
-      if (chachingSoundRef.current && soundLoaded) {
+      if (chachingSoundRef.current) {
         await chachingSoundRef.current.setPositionAsync(0);
         await chachingSoundRef.current.playAsync();
-      } else {
-        // Fallback: create and play immediately
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: 'https://assets.mixkit.co/active_storage/sfx/888/888-preview.mp3' },
-          { shouldPlay: true, volume: 1.0 }
-        );
-        sound.setOnPlaybackStatusUpdate((status) => {
-          if (status.isLoaded && status.didJustFinish) {
-            sound.unloadAsync();
-          }
-        });
       }
+      // Also vibrate for feedback
+      Vibration.vibrate(100);
     } catch (error) {
       console.log('Error playing sound:', error);
     }
   };
 
-  // Animate coin flying to wallet
   const animateCoin = () => {
     const coinId = coinIdRef.current++;
     const translateY = new Animated.Value(0);
     const translateX = new Animated.Value(0);
     const opacity = new Animated.Value(1);
-    const scale = new Animated.Value(1.5);
+    const scale = new Animated.Value(1.8);
 
-    const newCoin: CoinAnimation = {
-      id: coinId,
-      translateY,
-      translateX,
-      opacity,
-      scale,
-    };
+    setCoinAnimations((prev) => [...prev, {
+      id: coinId, translateY, translateX, opacity, scale,
+    }]);
 
-    setCoinAnimations((prev) => [...prev, newCoin]);
-
-    // Animate coin to wallet
     Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: -height * 0.35,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateX, {
-        toValue: width * 0.35,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scale, {
-        toValue: 0.4,
-        duration: 800,
-        useNativeDriver: true,
-      }),
+      Animated.timing(translateY, { toValue: -height * 0.4, duration: 700, useNativeDriver: true }),
+      Animated.timing(translateX, { toValue: width * 0.3, duration: 700, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 0.3, duration: 700, useNativeDriver: true }),
       Animated.sequence([
-        Animated.delay(500),
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
+        Animated.delay(400),
+        Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
       ]),
     ]).start(() => {
       setCoinAnimations((prev) => prev.filter((c) => c.id !== coinId));
-      
-      // Animate wallet when coin arrives
       Animated.sequence([
-        Animated.timing(walletScale, {
-          toValue: 1.4,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.timing(walletScale, {
-          toValue: 1,
-          duration: 100,
-          useNativeDriver: true,
-        }),
+        Animated.timing(walletScale, { toValue: 1.5, duration: 80, useNativeDriver: true }),
+        Animated.timing(walletScale, { toValue: 1, duration: 80, useNativeDriver: true }),
       ]).start();
     });
   };
 
-  // Handle rep completion
   const onRepCompleted = useCallback(() => {
     const now = Date.now();
-    // Prevent double counting - must wait MIN_REP_TIME between reps
-    if (now - lastRepTimeRef.current < MIN_REP_TIME) {
-      return;
-    }
+    if (now - lastRepTimeRef.current < MIN_REP_INTERVAL) return;
     lastRepTimeRef.current = now;
 
     setRepCount((prev) => prev + 1);
     setCoinsEarned((prev) => prev + 1);
     setSessionStats((prev) => ({
       ...prev,
-      [exerciseType === 'pushup' ? 'pushups' : 'situps']: prev[exerciseType === 'pushup' ? 'pushups' : 'situps'] + 1,
+      [exerciseType === 'pushup' ? 'pushups' : 'situps']: 
+        prev[exerciseType === 'pushup' ? 'pushups' : 'situps'] + 1,
     }));
 
-    // Animate rep counter
     Animated.sequence([
-      Animated.timing(repScale, {
-        toValue: 1.4,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(repScale, {
-        toValue: 1,
-        duration: 100,
-        useNativeDriver: true,
-      }),
+      Animated.timing(repScale, { toValue: 1.5, duration: 80, useNativeDriver: true }),
+      Animated.timing(repScale, { toValue: 1, duration: 80, useNativeDriver: true }),
     ]).start();
 
-    // Play sound and animate coin
     playChaChing();
     animateCoin();
-
-    // Save to backend
     saveRepToBackend();
   }, [exerciseType]);
 
-  // Save rep to backend
   const saveRepToBackend = async () => {
     try {
       await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/reps`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          exercise_type: exerciseType,
-          coins_earned: 1,
-        }),
+        body: JSON.stringify({ exercise_type: exerciseType, coins_earned: 1 }),
       });
     } catch (error) {
       console.log('Error saving rep:', error);
     }
   };
 
-  // Start accelerometer tracking
   const startTracking = async () => {
-    setIsTracking(true);
-    phaseRef.current = 'neutral';
-    peakValueRef.current = 0;
-    
-    // Set accelerometer update interval
-    Accelerometer.setUpdateInterval(50); // 20 updates per second
-
-    // Get initial baseline
-    const initial = await Accelerometer.isAvailableAsync();
-    if (!initial) {
-      console.log('Accelerometer not available');
+    const available = await Accelerometer.isAvailableAsync();
+    if (!available) {
+      setMotionStatus('Accelerometer not available');
       return;
     }
 
+    setIsTracking(true);
+    setMotionStatus('Move to start...');
+    
+    // Reset detection state
+    motionHistoryRef.current = [];
+    peakDetectedRef.current = false;
+    valleyDetectedRef.current = false;
+    lastValueRef.current = 0;
+    smoothedValueRef.current = 0;
+
+    Accelerometer.setUpdateInterval(50); // 20 Hz
+
     subscriptionRef.current = Accelerometer.addListener(({ x, y, z }) => {
-      // Calculate acceleration magnitude change
-      const threshold = exerciseType === 'pushup' ? PUSHUP_THRESHOLD : SITUP_THRESHOLD;
+      // Use Y-axis for push-ups (up/down when phone is face-down or on floor)
+      // Use Z-axis for sit-ups (forward/back movement)
+      const rawValue = exerciseType === 'pushup' ? y : z;
       
-      // For push-ups, we mainly track Y-axis (vertical movement)
-      // For sit-ups, we track Z-axis (forward/backward movement)
-      const relevantAxis = exerciseType === 'pushup' ? y : z;
+      // Add to history for smoothing
+      motionHistoryRef.current.push(rawValue);
+      if (motionHistoryRef.current.length > HISTORY_SIZE) {
+        motionHistoryRef.current.shift();
+      }
+
+      // Calculate smoothed value (moving average)
+      const smoothed = motionHistoryRef.current.reduce((a, b) => a + b, 0) / motionHistoryRef.current.length;
+      const delta = smoothed - smoothedValueRef.current;
+      smoothedValueRef.current = smoothed;
+
+      // Simple peak-valley detection for rep counting
+      // A rep is: neutral -> down (valley) -> up (peak) -> neutral
       
-      // Detect rep phases based on acceleration
-      // Phase 1: Going down (negative acceleration)
-      // Phase 2: Going up (positive acceleration) - rep complete!
-      
-      if (phaseRef.current === 'neutral') {
-        // Waiting for downward movement
-        if (relevantAxis < -threshold) {
-          phaseRef.current = 'down';
-          setRepPhase('down');
-          peakValueRef.current = relevantAxis;
+      if (!valleyDetectedRef.current) {
+        // Looking for downward movement (valley)
+        if (smoothed < -MOTION_THRESHOLD) {
+          valleyDetectedRef.current = true;
+          setMotionStatus('DOWN - keep going!');
         }
-      } else if (phaseRef.current === 'down') {
-        // Track the lowest point
-        if (relevantAxis < peakValueRef.current) {
-          peakValueRef.current = relevantAxis;
+      } else if (!peakDetectedRef.current) {
+        // Already went down, looking for upward movement (peak)
+        if (smoothed > MOTION_THRESHOLD) {
+          peakDetectedRef.current = true;
+          setMotionStatus('UP - almost there!');
         }
-        // Detect upward movement (coming back up)
-        if (relevantAxis > peakValueRef.current + threshold) {
-          phaseRef.current = 'up';
-          setRepPhase('up');
-        }
-      } else if (phaseRef.current === 'up') {
-        // Wait until we're back to neutral position
-        if (Math.abs(relevantAxis) < threshold * 0.5) {
+      } else {
+        // Both valley and peak detected, wait for return to neutral
+        if (Math.abs(smoothed) < MOTION_THRESHOLD * 0.5) {
           // Full rep completed!
           onRepCompleted();
-          phaseRef.current = 'neutral';
-          setRepPhase('ready');
-          peakValueRef.current = 0;
+          setMotionStatus('REP! Keep going...');
+          
+          // Reset for next rep
+          valleyDetectedRef.current = false;
+          peakDetectedRef.current = false;
+          
+          // Brief delay then reset status
+          setTimeout(() => {
+            if (isTracking) setMotionStatus('Ready for next rep');
+          }, 500);
         }
       }
     });
   };
 
-  // Stop accelerometer tracking
   const stopTracking = () => {
     setIsTracking(false);
-    setRepPhase('ready');
+    setMotionStatus('Press START');
     if (subscriptionRef.current) {
       subscriptionRef.current.remove();
       subscriptionRef.current = null;
     }
   };
 
-  // Toggle tracking
   const toggleTracking = () => {
     if (isTracking) {
       stopTracking();
@@ -348,20 +282,18 @@ export default function WorkoutScreen() {
     }
   };
 
-  // Manual rep button
   const handleManualRep = () => {
     onRepCompleted();
+    setMotionStatus('Manual rep added!');
+    setTimeout(() => setMotionStatus(isTracking ? 'Ready for next rep' : 'Press START'), 1000);
   };
 
-  // Toggle camera facing
   const toggleCameraFacing = () => {
     setFacing((prev) => (prev === 'front' ? 'back' : 'front'));
   };
 
-  // End workout session
   const endWorkout = async () => {
     stopTracking();
-    
     try {
       await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/sessions`, {
         method: 'POST',
@@ -375,24 +307,14 @@ export default function WorkoutScreen() {
     } catch (error) {
       console.log('Error saving session:', error);
     }
-
     router.push('/wallet');
-  };
-
-  // Get phase color
-  const getPhaseColor = () => {
-    switch (repPhase) {
-      case 'down': return '#FF6B6B';
-      case 'up': return '#4CAF50';
-      default: return '#FFD700';
-    }
   };
 
   // Permission screens
   if (!permission) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <Text style={styles.permissionText}>Requesting camera permission...</Text>
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
@@ -440,9 +362,9 @@ export default function WorkoutScreen() {
         <View style={styles.exerciseSelector}>
           <TouchableOpacity
             style={[styles.exerciseButton, exerciseType === 'pushup' && styles.exerciseButtonActive]}
-            onPress={() => { setExerciseType('pushup'); stopTracking(); }}
+            onPress={() => { setExerciseType('pushup'); if (isTracking) { stopTracking(); startTracking(); } }}
           >
-            <MaterialCommunityIcons name="arm-flex" size={24} color={exerciseType === 'pushup' ? '#000' : '#FFF'} />
+            <MaterialCommunityIcons name="arm-flex" size={22} color={exerciseType === 'pushup' ? '#000' : '#FFF'} />
             <Text style={[styles.exerciseButtonText, exerciseType === 'pushup' && styles.exerciseButtonTextActive]}>
               Push-ups
             </Text>
@@ -450,9 +372,9 @@ export default function WorkoutScreen() {
 
           <TouchableOpacity
             style={[styles.exerciseButton, exerciseType === 'situp' && styles.exerciseButtonActive]}
-            onPress={() => { setExerciseType('situp'); stopTracking(); }}
+            onPress={() => { setExerciseType('situp'); if (isTracking) { stopTracking(); startTracking(); } }}
           >
-            <MaterialCommunityIcons name="human" size={24} color={exerciseType === 'situp' ? '#000' : '#FFF'} />
+            <MaterialCommunityIcons name="human" size={22} color={exerciseType === 'situp' ? '#000' : '#FFF'} />
             <Text style={[styles.exerciseButtonText, exerciseType === 'situp' && styles.exerciseButtonTextActive]}>
               Sit-ups
             </Text>
@@ -461,19 +383,15 @@ export default function WorkoutScreen() {
 
         {/* Rep counter */}
         <View style={styles.repDisplay}>
-          <Animated.View style={[styles.repCounter, { transform: [{ scale: repScale }], borderColor: getPhaseColor() }]}>
+          <Animated.View style={[styles.repCounter, { transform: [{ scale: repScale }] }]}>
             <Text style={styles.repNumber}>{repCount}</Text>
             <Text style={styles.repLabel}>REPS</Text>
           </Animated.View>
           
-          {/* Phase indicator */}
-          {isTracking && (
-            <View style={[styles.phaseIndicator, { backgroundColor: getPhaseColor() }]}>
-              <Text style={styles.phaseText}>
-                {repPhase === 'down' ? 'DOWN' : repPhase === 'up' ? 'UP' : 'READY'}
-              </Text>
-            </View>
-          )}
+          {/* Motion status */}
+          <View style={[styles.statusBadge, isTracking && styles.statusBadgeActive]}>
+            <Text style={styles.statusText}>{motionStatus}</Text>
+          </View>
         </View>
 
         {/* Coin animations */}
@@ -493,7 +411,7 @@ export default function WorkoutScreen() {
             ]}
           >
             <View style={styles.coinIcon}>
-              <Text style={styles.coinText}>R</Text>
+              <Text style={styles.coinText}>$</Text>
             </View>
           </Animated.View>
         ))}
@@ -501,29 +419,27 @@ export default function WorkoutScreen() {
         {/* Bottom controls */}
         <View style={[styles.bottomControls, { paddingBottom: insets.bottom + 20 }]}>
           {/* End button */}
-          <TouchableOpacity style={styles.endButton} onPress={endWorkout}>
-            <Ionicons name="stop" size={28} color="#FF4444" />
-            <Text style={styles.endButtonText}>END</Text>
+          <TouchableOpacity style={styles.sideButton} onPress={endWorkout}>
+            <Ionicons name="stop-circle" size={32} color="#FF4444" />
+            <Text style={styles.sideButtonText}>END</Text>
           </TouchableOpacity>
 
           {/* Main tracking button */}
           <Animated.View style={{ transform: [{ scale: buttonPulse }] }}>
             <TouchableOpacity
-              style={[styles.trackingButton, isTracking && styles.trackingButtonActive]}
+              style={[styles.mainButton, isTracking && styles.mainButtonActive]}
               onPress={toggleTracking}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
-              <Ionicons name={isTracking ? 'pause' : 'play'} size={40} color="#000" />
-              <Text style={styles.trackingButtonText}>
-                {isTracking ? 'TRACKING' : 'START'}
-              </Text>
+              <Ionicons name={isTracking ? 'pause' : 'play'} size={48} color="#000" />
+              <Text style={styles.mainButtonText}>{isTracking ? 'PAUSE' : 'START'}</Text>
             </TouchableOpacity>
           </Animated.View>
 
           {/* Manual tap button */}
-          <TouchableOpacity style={styles.manualButton} onPress={handleManualRep}>
-            <Ionicons name="add" size={28} color="#FFF" />
-            <Text style={styles.manualButtonText}>TAP</Text>
+          <TouchableOpacity style={styles.sideButton} onPress={handleManualRep}>
+            <Ionicons name="add-circle" size={32} color="#4CAF50" />
+            <Text style={[styles.sideButtonText, { color: '#4CAF50' }]}>+1 REP</Text>
           </TouchableOpacity>
         </View>
       </CameraView>
@@ -539,6 +455,12 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
   },
+  loadingText: {
+    color: '#FFF',
+    fontSize: 18,
+    textAlign: 'center',
+    marginTop: 100,
+  },
   header: {
     position: 'absolute',
     top: 0,
@@ -551,32 +473,32 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   headerButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   walletIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 25,
     borderWidth: 2,
     borderColor: '#FFD700',
   },
   walletCoins: {
     color: '#FFD700',
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     marginLeft: 8,
   },
   exerciseSelector: {
     position: 'absolute',
-    top: 100,
+    top: 110,
     left: 16,
     right: 16,
     flexDirection: 'row',
@@ -586,12 +508,12 @@ const styles = StyleSheet.create({
   exerciseButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 25,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderWidth: 1,
-    borderColor: '#444',
+    borderColor: '#555',
   },
   exerciseButtonActive: {
     backgroundColor: '#FFD700',
@@ -599,8 +521,9 @@ const styles = StyleSheet.create({
   },
   exerciseButtonText: {
     color: '#FFF',
-    marginLeft: 8,
+    marginLeft: 6,
     fontWeight: '600',
+    fontSize: 14,
   },
   exerciseButtonTextActive: {
     color: '#000',
@@ -612,59 +535,72 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   repCounter: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
-    borderWidth: 5,
+    borderWidth: 6,
     borderColor: '#FFD700',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
   },
   repNumber: {
-    fontSize: 56,
+    fontSize: 64,
     fontWeight: 'bold',
     color: '#FFD700',
   },
   repLabel: {
-    fontSize: 14,
-    color: '#888',
-    marginTop: -4,
+    fontSize: 16,
+    color: '#AAA',
+    marginTop: -6,
+    fontWeight: '600',
   },
-  phaseIndicator: {
-    marginTop: 12,
+  statusBadge: {
+    marginTop: 16,
     paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderWidth: 1,
+    borderColor: '#555',
   },
-  phaseText: {
-    color: '#000',
-    fontWeight: 'bold',
+  statusBadgeActive: {
+    backgroundColor: 'rgba(76, 175, 80, 0.3)',
+    borderColor: '#4CAF50',
+  },
+  statusText: {
+    color: '#FFF',
     fontSize: 14,
+    fontWeight: '600',
   },
   flyingCoin: {
     position: 'absolute',
-    top: height * 0.5,
+    top: height * 0.48,
     alignSelf: 'center',
     zIndex: 100,
   },
   coinIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     backgroundColor: '#FFD700',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 4,
-    borderColor: '#B8860B',
+    borderWidth: 5,
+    borderColor: '#DAA520',
     shadowColor: '#FFD700',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 15,
-    elevation: 10,
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    elevation: 15,
   },
   coinText: {
-    fontSize: 28,
+    fontSize: 36,
     fontWeight: 'bold',
     color: '#8B4513',
   },
@@ -674,65 +610,46 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     paddingTop: 20,
   },
-  endButton: {
+  sideButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 65,
-    height: 65,
-    borderRadius: 32,
-    backgroundColor: 'rgba(255, 68, 68, 0.2)',
-    borderWidth: 2,
-    borderColor: '#FF4444',
+    width: 70,
+    paddingVertical: 8,
   },
-  endButtonText: {
+  sideButtonText: {
     color: '#FF4444',
-    fontSize: 10,
-    marginTop: 2,
+    fontSize: 11,
+    marginTop: 4,
     fontWeight: 'bold',
   },
-  trackingButton: {
+  mainButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
     backgroundColor: '#FFD700',
     shadowColor: '#FFD700',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 10,
+    shadowOpacity: 0.6,
+    shadowRadius: 15,
+    elevation: 12,
   },
-  trackingButtonActive: {
+  mainButtonActive: {
     backgroundColor: '#4CAF50',
+    shadowColor: '#4CAF50',
   },
-  trackingButtonText: {
+  mainButtonText: {
     color: '#000',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 'bold',
-    marginTop: 4,
-  },
-  manualButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 65,
-    height: 65,
-    borderRadius: 32,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 2,
-    borderColor: '#888',
-  },
-  manualButtonText: {
-    color: '#FFF',
-    fontSize: 10,
     marginTop: 2,
-    fontWeight: '600',
   },
   permissionContainer: {
     flex: 1,
