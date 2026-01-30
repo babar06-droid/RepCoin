@@ -7,14 +7,12 @@ import {
   Dimensions,
   Animated,
   Vibration,
-  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Audio } from 'expo-av';
-import { LightSensor, Accelerometer } from 'expo-sensors';
 
 const { width, height } = Dimensions.get('window');
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
@@ -33,6 +31,7 @@ export default function WorkoutScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
+  const [audioPermission, setAudioPermission] = useState<boolean | null>(null);
 
   const [exerciseType, setExerciseType] = useState<ExerciseType>('pushup');
   const [repCount, setRepCount] = useState(0);
@@ -42,31 +41,24 @@ export default function WorkoutScreen() {
   const [sessionStats, setSessionStats] = useState({ pushups: 0, situps: 0 });
   const [isTracking, setIsTracking] = useState(false);
   const [statusMessage, setStatusMessage] = useState('Press START');
-  const [lightLevel, setLightLevel] = useState<number | null>(null);
-  const [sensorType, setSensorType] = useState<'light' | 'motion' | 'none'>('none');
+  const [soundLevel, setSoundLevel] = useState(0);
 
   const coinIdRef = useRef(0);
   const chachingSoundRef = useRef<Audio.Sound | null>(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
   const repScale = useRef(new Animated.Value(1)).current;
   const walletScale = useRef(new Animated.Value(1)).current;
+  const soundBarWidth = useRef(new Animated.Value(0)).current;
 
-  // Sensor refs
-  const lightSubRef = useRef<any>(null);
-  const accelSubRef = useRef<any>(null);
+  // Audio detection
   const lastRepTimeRef = useRef(0);
-  
-  // Light-based detection
-  const baselineLightRef = useRef<number | null>(null);
-  const lightHistoryRef = useRef<number[]>([]);
-  const wasBlockedRef = useRef(false);
-  
-  // Motion-based detection (fallback)
-  const motionHistoryRef = useRef<number[]>([]);
-  const motionBaselineRef = useRef<number | null>(null);
-  const wasMovingRef = useRef(false);
+  const baselineNoiseRef = useRef<number | null>(null);
+  const noiseHistoryRef = useRef<number[]>([]);
+  const wasLoudRef = useRef(false);
+  const meteringIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    checkSensors();
+    requestAudioPermission();
     loadSound();
     return () => {
       stopTracking();
@@ -74,17 +66,13 @@ export default function WorkoutScreen() {
     };
   }, []);
 
-  const checkSensors = async () => {
-    // Check if light sensor is available (Android only typically)
-    const lightAvailable = await LightSensor.isAvailableAsync();
-    const accelAvailable = await Accelerometer.isAvailableAsync();
-    
-    if (lightAvailable) {
-      setSensorType('light');
-    } else if (accelAvailable) {
-      setSensorType('motion');
-    } else {
-      setSensorType('none');
+  const requestAudioPermission = async () => {
+    try {
+      const { granted } = await Audio.requestPermissionsAsync();
+      setAudioPermission(granted);
+    } catch (error) {
+      console.log('Audio permission error:', error);
+      setAudioPermission(false);
     }
   };
 
@@ -94,6 +82,7 @@ export default function WorkoutScreen() {
         playsInSilentModeIOS: true,
         staysActiveInBackground: false,
         shouldDuckAndroid: true,
+        allowsRecordingIOS: true,
       });
       const { sound } = await Audio.Sound.createAsync(
         require('../assets/sounds/chaching.mp3'),
@@ -113,6 +102,7 @@ export default function WorkoutScreen() {
 
   const playChaChing = async () => {
     try {
+      // Pause recording briefly to play sound
       if (chachingSoundRef.current) {
         await chachingSoundRef.current.setPositionAsync(0);
         await chachingSoundRef.current.playAsync();
@@ -149,7 +139,7 @@ export default function WorkoutScreen() {
 
   const countRep = useCallback(() => {
     const now = Date.now();
-    if (now - lastRepTimeRef.current < 500) return;
+    if (now - lastRepTimeRef.current < 600) return; // Min 600ms between reps
     lastRepTimeRef.current = now;
 
     setRepCount((prev) => prev + 1);
@@ -168,8 +158,8 @@ export default function WorkoutScreen() {
     playChaChing();
     animateCoin();
     saveRepToBackend();
-    setStatusMessage('💰 REP COUNTED!');
-    setTimeout(() => setStatusMessage('Keep going...'), 500);
+    setStatusMessage('💰 REP!');
+    setTimeout(() => setStatusMessage('Keep going...'), 400);
   }, [exerciseType]);
 
   const saveRepToBackend = async () => {
@@ -182,132 +172,142 @@ export default function WorkoutScreen() {
     } catch (error) {}
   };
 
-  const startLightTracking = () => {
-    setStatusMessage('Calibrating light...');
-    baselineLightRef.current = null;
-    lightHistoryRef.current = [];
-    wasBlockedRef.current = false;
+  const startAudioDetection = async () => {
+    try {
+      setStatusMessage('Calibrating audio...');
+      baselineNoiseRef.current = null;
+      noiseHistoryRef.current = [];
+      wasLoudRef.current = false;
 
-    LightSensor.setUpdateInterval(50);
-    
-    let calibrationSamples: number[] = [];
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
 
-    lightSubRef.current = LightSensor.addListener(({ illuminance }) => {
-      setLightLevel(illuminance);
-      
-      // Calibration phase
-      if (baselineLightRef.current === null) {
-        calibrationSamples.push(illuminance);
-        if (calibrationSamples.length >= 30) {
-          baselineLightRef.current = calibrationSamples.reduce((a, b) => a + b, 0) / calibrationSamples.length;
-          setStatusMessage('GO! Start your reps');
+      const recording = new Audio.Recording();
+      await recording.prepareToRecordAsync({
+        android: {
+          extension: '.m4a',
+          outputFormat: 2, // MPEG_4
+          audioEncoder: 3, // AAC
+          sampleRate: 44100,
+          numberOfChannels: 1,
+          bitRate: 128000,
+        },
+        ios: {
+          extension: '.m4a',
+          outputFormat: 'aac',
+          audioQuality: 0x7F, // MAX
+          sampleRate: 44100,
+          numberOfChannels: 1,
+          bitRate: 128000,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        },
+        web: {
+          mimeType: 'audio/webm',
+          bitsPerSecond: 128000,
+        },
+      });
+
+      await recording.startAsync();
+      recordingRef.current = recording;
+
+      let calibrationSamples: number[] = [];
+
+      // Poll for metering data
+      meteringIntervalRef.current = setInterval(async () => {
+        try {
+          const status = await recording.getStatusAsync();
+          if (status.isRecording && status.metering !== undefined) {
+            const db = status.metering;
+            const normalizedLevel = Math.max(0, (db + 60) / 60); // Normalize -60db to 0db -> 0 to 1
+            
+            setSoundLevel(normalizedLevel);
+            Animated.timing(soundBarWidth, { 
+              toValue: normalizedLevel * 100, 
+              duration: 50, 
+              useNativeDriver: false 
+            }).start();
+
+            // Calibration phase
+            if (baselineNoiseRef.current === null) {
+              calibrationSamples.push(db);
+              if (calibrationSamples.length >= 20) {
+                baselineNoiseRef.current = calibrationSamples.reduce((a, b) => a + b, 0) / calibrationSamples.length;
+                setStatusMessage('GO! Count out loud or clap');
+              }
+              return;
+            }
+
+            // Track noise history
+            noiseHistoryRef.current.push(db);
+            if (noiseHistoryRef.current.length > 5) noiseHistoryRef.current.shift();
+
+            const avgNoise = noiseHistoryRef.current.reduce((a, b) => a + b, 0) / noiseHistoryRef.current.length;
+            const baseline = baselineNoiseRef.current;
+            
+            // Detect sound spike (voice, clap, etc.) - 10db above baseline
+            const spikeThreshold = baseline + 10;
+            const quietThreshold = baseline + 3;
+
+            if (!wasLoudRef.current && avgNoise > spikeThreshold) {
+              // Sound detected!
+              wasLoudRef.current = true;
+              setStatusMessage('🔊 Sound detected!');
+            } else if (wasLoudRef.current && avgNoise < quietThreshold) {
+              // Sound ended = count rep
+              wasLoudRef.current = false;
+              countRep();
+            }
+          }
+        } catch (error) {
+          // Metering might not be available
         }
-        return;
-      }
+      }, 100);
 
-      // Track light history
-      lightHistoryRef.current.push(illuminance);
-      if (lightHistoryRef.current.length > 10) lightHistoryRef.current.shift();
-
-      const avgLight = lightHistoryRef.current.reduce((a, b) => a + b, 0) / lightHistoryRef.current.length;
-      const baseline = baselineLightRef.current;
-      
-      // Detect light blocked (body over phone) - typically 30%+ drop
-      const dropThreshold = baseline * 0.7; // 30% drop
-      const returnThreshold = baseline * 0.85; // Within 15% of baseline
-
-      if (!wasBlockedRef.current && avgLight < dropThreshold) {
-        // Light blocked - going DOWN
-        wasBlockedRef.current = true;
-        setStatusMessage('⬇️ DOWN detected');
-      } else if (wasBlockedRef.current && avgLight > returnThreshold) {
-        // Light returned - going UP = REP!
-        wasBlockedRef.current = false;
-        countRep();
-      }
-    });
-  };
-
-  const startMotionTracking = () => {
-    setStatusMessage('Calibrating motion...');
-    motionBaselineRef.current = null;
-    motionHistoryRef.current = [];
-    wasMovingRef.current = false;
-
-    Accelerometer.setUpdateInterval(50);
-    
-    let calibrationSamples: number[] = [];
-
-    accelSubRef.current = Accelerometer.addListener(({ x, y, z }) => {
-      const magnitude = Math.sqrt(x * x + y * y + z * z);
-      
-      // Calibration phase
-      if (motionBaselineRef.current === null) {
-        calibrationSamples.push(magnitude);
-        if (calibrationSamples.length >= 30) {
-          motionBaselineRef.current = calibrationSamples.reduce((a, b) => a + b, 0) / calibrationSamples.length;
-          setStatusMessage('GO! Start your reps');
-        }
-        return;
-      }
-
-      // Track motion history
-      motionHistoryRef.current.push(magnitude);
-      if (motionHistoryRef.current.length > 10) motionHistoryRef.current.shift();
-
-      const avgMotion = motionHistoryRef.current.reduce((a, b) => a + b, 0) / motionHistoryRef.current.length;
-      const baseline = motionBaselineRef.current;
-      const deviation = Math.abs(avgMotion - baseline);
-
-      // Detect significant motion
-      const motionThreshold = 0.05;
-      const restThreshold = 0.02;
-
-      if (!wasMovingRef.current && deviation > motionThreshold) {
-        // Started moving
-        wasMovingRef.current = true;
-        setStatusMessage('⬇️ Movement detected');
-      } else if (wasMovingRef.current && deviation < restThreshold) {
-        // Returned to rest = REP!
-        wasMovingRef.current = false;
-        countRep();
-      }
-    });
-  };
-
-  const startTracking = () => {
-    setIsTracking(true);
-    
-    if (sensorType === 'light') {
-      startLightTracking();
-    } else {
-      startMotionTracking();
+    } catch (error) {
+      console.log('Audio recording error:', error);
+      setStatusMessage('Audio detection not available');
     }
   };
 
-  const stopTracking = () => {
+  const stopAudioDetection = async () => {
+    if (meteringIntervalRef.current) {
+      clearInterval(meteringIntervalRef.current);
+      meteringIntervalRef.current = null;
+    }
+    
+    if (recordingRef.current) {
+      try {
+        await recordingRef.current.stopAndUnloadAsync();
+      } catch (error) {}
+      recordingRef.current = null;
+    }
+  };
+
+  const startTracking = async () => {
+    setIsTracking(true);
+    await startAudioDetection();
+  };
+
+  const stopTracking = async () => {
     setIsTracking(false);
     setStatusMessage('Press START');
-    
-    if (lightSubRef.current) {
-      lightSubRef.current.remove();
-      lightSubRef.current = null;
-    }
-    if (accelSubRef.current) {
-      accelSubRef.current.remove();
-      accelSubRef.current = null;
-    }
+    setSoundLevel(0);
+    await stopAudioDetection();
   };
 
-  const toggleTracking = () => {
-    if (isTracking) stopTracking();
-    else startTracking();
+  const toggleTracking = async () => {
+    if (isTracking) await stopTracking();
+    else await startTracking();
   };
 
   const toggleCameraFacing = () => setFacing((prev) => (prev === 'front' ? 'back' : 'front'));
 
   const endWorkout = async () => {
-    stopTracking();
+    await stopTracking();
     try {
       await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/sessions`, {
         method: 'POST',
@@ -365,16 +365,10 @@ export default function WorkoutScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Sensor indicator */}
-        <View style={styles.sensorBadge}>
-          <Ionicons 
-            name={sensorType === 'light' ? 'sunny' : sensorType === 'motion' ? 'speedometer' : 'alert-circle'} 
-            size={16} 
-            color={sensorType !== 'none' ? '#4CAF50' : '#FF6B6B'} 
-          />
-          <Text style={[styles.sensorText, { color: sensorType !== 'none' ? '#4CAF50' : '#FF6B6B' }]}>
-            {sensorType === 'light' ? 'Light Sensor' : sensorType === 'motion' ? 'Motion Sensor' : 'No Sensor'}
-          </Text>
+        {/* Audio indicator */}
+        <View style={styles.audioBadge}>
+          <Ionicons name="mic" size={16} color="#4CAF50" />
+          <Text style={styles.audioBadgeText}>Voice Detection</Text>
         </View>
 
         {/* Exercise selector */}
@@ -406,26 +400,26 @@ export default function WorkoutScreen() {
             <Text style={styles.statusText}>{statusMessage}</Text>
           </View>
 
-          {/* Light level display */}
-          {isTracking && lightLevel !== null && (
-            <Text style={styles.lightDisplay}>Light: {Math.round(lightLevel)} lux</Text>
+          {/* Sound level meter */}
+          {isTracking && (
+            <View style={styles.soundMeter}>
+              <Ionicons name="mic" size={16} color="#4CAF50" />
+              <View style={styles.soundBarBg}>
+                <Animated.View style={[styles.soundBar, { width: soundBarWidth.interpolate({
+                  inputRange: [0, 100],
+                  outputRange: ['0%', '100%'],
+                }) }]} />
+              </View>
+            </View>
           )}
         </View>
 
         {/* Instructions */}
         {isTracking && (
           <View style={styles.instructionBox}>
-            {sensorType === 'light' ? (
-              <>
-                <Text style={styles.instructionTitle}>📱 Place phone on floor facing UP</Text>
-                <Text style={styles.instructionText}>Your body will block light when going down</Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.instructionTitle}>📱 Hold phone or place nearby</Text>
-                <Text style={styles.instructionText}>Motion will be detected automatically</Text>
-              </>
-            )}
+            <Text style={styles.instructionTitle}>🎤 Voice Detection Active</Text>
+            <Text style={styles.instructionText}>Count out loud: "ONE", "TWO", "THREE"...</Text>
+            <Text style={styles.instructionText}>Or clap after each rep!</Text>
           </View>
         )}
 
@@ -485,12 +479,12 @@ const styles = StyleSheet.create({
     borderRadius: 40, borderWidth: 4, borderColor: '#FFD700',
   },
   walletCoins: { color: '#FFD700', fontSize: 32, fontWeight: 'bold', marginLeft: 12 },
-  sensorBadge: {
+  audioBadge: {
     position: 'absolute', top: 80, alignSelf: 'center',
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.8)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
   },
-  sensorText: { fontSize: 12, fontWeight: '600', marginLeft: 6 },
+  audioBadgeText: { color: '#4CAF50', fontSize: 12, fontWeight: '600', marginLeft: 6 },
   exerciseSelector: {
     position: 'absolute', top: 120, left: 16, right: 16,
     flexDirection: 'row', justifyContent: 'center', gap: 12,
@@ -503,7 +497,7 @@ const styles = StyleSheet.create({
   exerciseButtonActive: { backgroundColor: '#FFD700', borderColor: '#FFD700' },
   exerciseButtonText: { color: '#FFF', marginLeft: 8, fontWeight: '700', fontSize: 16 },
   exerciseButtonTextActive: { color: '#000' },
-  repDisplay: { position: 'absolute', top: height * 0.2, alignSelf: 'center', alignItems: 'center' },
+  repDisplay: { position: 'absolute', top: height * 0.18, alignSelf: 'center', alignItems: 'center' },
   repCounter: {
     width: 170, height: 170, borderRadius: 85,
     backgroundColor: 'rgba(0,0,0,0.9)', borderWidth: 7, borderColor: '#FFD700',
@@ -516,14 +510,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
   },
   statusText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
-  lightDisplay: { color: '#888', fontSize: 12, marginTop: 10 },
+  soundMeter: {
+    flexDirection: 'row', alignItems: 'center', marginTop: 16,
+    backgroundColor: 'rgba(0,0,0,0.7)', padding: 10, borderRadius: 20,
+  },
+  soundBarBg: {
+    width: 150, height: 8, backgroundColor: '#333', borderRadius: 4, marginLeft: 10, overflow: 'hidden',
+  },
+  soundBar: {
+    height: '100%', backgroundColor: '#4CAF50', borderRadius: 4,
+  },
   instructionBox: {
-    position: 'absolute', top: height * 0.52, alignSelf: 'center',
+    position: 'absolute', top: height * 0.5, alignSelf: 'center',
     backgroundColor: 'rgba(0,0,0,0.85)', padding: 16, borderRadius: 16,
     maxWidth: width - 40,
   },
-  instructionTitle: { color: '#FFD700', fontSize: 14, fontWeight: 'bold', marginBottom: 4 },
-  instructionText: { color: '#FFF', fontSize: 13 },
+  instructionTitle: { color: '#FFD700', fontSize: 14, fontWeight: 'bold', marginBottom: 8 },
+  instructionText: { color: '#FFF', fontSize: 13, marginBottom: 4 },
   flyingCoin: { position: 'absolute', top: height * 0.42, alignSelf: 'center', zIndex: 100 },
   coinIcon: {
     width: 100, height: 100, borderRadius: 50,
