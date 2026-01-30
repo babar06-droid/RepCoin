@@ -243,45 +243,17 @@ export default function WorkoutScreen() {
     }
   };
 
-  // Simulated pose detection (in real app, this would use TensorFlow/MediaPipe)
-  const simulatePoseDetection = useCallback(() => {
-    frameCountRef.current++;
-    
-    // Simulate pose phase changes (in real app, this would analyze camera frames)
-    // Every ~2 seconds simulate a rep completion based on "detected" pose changes
-    if (frameCountRef.current % 40 === 0) {
-      // Simulate pose phase transition
-      setPosePhase((prev) => {
-        if (prev === 'up') {
-          return 'down';
-        } else {
-          // Rep completed on up phase
-          onRepCompleted();
-          return 'up';
-        }
-      });
-    }
-  }, [onRepCompleted]);
-
   // Manual rep button (for when AI detection isn't available)
   const handleManualRep = () => {
     onRepCompleted();
   };
 
-  // Start/stop tracking
+  // Start/stop tracking - now just toggles ready state
   const toggleTracking = () => {
-    if (isTracking) {
-      // Stop tracking
-      if (poseTimerRef.current) {
-        clearInterval(poseTimerRef.current);
-        poseTimerRef.current = null;
-      }
-      setIsTracking(false);
-    } else {
-      // Start tracking
-      frameCountRef.current = 0;
-      poseTimerRef.current = setInterval(simulatePoseDetection, 50);
-      setIsTracking(true);
+    setIsTracking(!isTracking);
+    // Reset pose phase when starting
+    if (!isTracking) {
+      setPosePhase('up');
     }
   };
 
