@@ -41,56 +41,34 @@ export default function WorkoutScreen() {
   const [coinAnimations, setCoinAnimations] = useState<CoinAnimation[]>([]);
   const [sessionStats, setSessionStats] = useState({ pushups: 0, situps: 0 });
   const [isTracking, setIsTracking] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('Tap START to begin');
-  
-  // Debug display
-  const [accelData, setAccelData] = useState({ x: 0, y: 0, z: 0 });
-  const [gyroData, setGyroData] = useState({ x: 0, y: 0, z: 0 });
-  const [sensorAvailable, setSensorAvailable] = useState<string>('Checking...');
+  const [statusMessage, setStatusMessage] = useState('Press START');
+  const [phase, setPhase] = useState<'rest' | 'down' | 'up'>('rest');
 
   const coinIdRef = useRef(0);
   const chachingSoundRef = useRef<Audio.Sound | null>(null);
   const repScale = useRef(new Animated.Value(1)).current;
   const walletScale = useRef(new Animated.Value(1)).current;
+  const phaseScale = useRef(new Animated.Value(1)).current;
 
-  // Sensor subscriptions
+  // Sensor tracking
   const accelSubRef = useRef<any>(null);
   const gyroSubRef = useRef<any>(null);
-  
-  // Rep detection
   const lastRepTimeRef = useRef(0);
-  const movementPhaseRef = useRef<'rest' | 'active'>('rest');
-  const peakGyroRef = useRef(0);
-  const samplesRef = useRef<number[]>([]);
+  
+  // Simplified detection - track total movement
+  const movementHistoryRef = useRef<number[]>([]);
+  const baselineRef = useRef<number | null>(null);
+  const inMotionRef = useRef(false);
+  const motionStartTimeRef = useRef(0);
+  const peakMotionRef = useRef(0);
 
-  // Check sensor availability on mount
   useEffect(() => {
-    checkSensors();
     loadSound();
     return () => {
-      stopAllSensors();
+      stopTracking();
       if (chachingSoundRef.current) chachingSoundRef.current.unloadAsync();
     };
   }, []);
-
-  const checkSensors = async () => {
-    const accelAvail = await Accelerometer.isAvailableAsync();
-    const gyroAvail = await Gyroscope.isAvailableAsync();
-    
-    let status = '';
-    if (Platform.OS === 'web') {
-      status = '⚠️ Web browser - sensors limited. Use Expo Go app on phone!';
-    } else if (accelAvail && gyroAvail) {
-      status = '✅ Sensors ready';
-    } else if (accelAvail) {
-      status = '✅ Accelerometer ready (no gyro)';
-    } else if (gyroAvail) {
-      status = '✅ Gyroscope ready (no accel)';
-    } else {
-      status = '❌ No motion sensors available';
-    }
-    setSensorAvailable(status);
-  };
 
   const loadSound = async () => {
     try {
@@ -121,7 +99,7 @@ export default function WorkoutScreen() {
         await chachingSoundRef.current.setPositionAsync(0);
         await chachingSoundRef.current.playAsync();
       }
-      Vibration.vibrate(200);
+      Vibration.vibrate(250);
     } catch (error) {}
   };
 
@@ -135,25 +113,25 @@ export default function WorkoutScreen() {
     setCoinAnimations((prev) => [...prev, { id: coinId, translateY, translateX, opacity, scale }]);
 
     Animated.parallel([
-      Animated.timing(translateY, { toValue: -height * 0.4, duration: 500, useNativeDriver: true }),
-      Animated.timing(translateX, { toValue: width * 0.3, duration: 500, useNativeDriver: true }),
-      Animated.timing(scale, { toValue: 0.3, duration: 500, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: -height * 0.38, duration: 450, useNativeDriver: true }),
+      Animated.timing(translateX, { toValue: width * 0.32, duration: 450, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 0.25, duration: 450, useNativeDriver: true }),
       Animated.sequence([
-        Animated.delay(300),
-        Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+        Animated.delay(280),
+        Animated.timing(opacity, { toValue: 0, duration: 170, useNativeDriver: true }),
       ]),
     ]).start(() => {
       setCoinAnimations((prev) => prev.filter((c) => c.id !== coinId));
       Animated.sequence([
-        Animated.timing(walletScale, { toValue: 1.8, duration: 60, useNativeDriver: true }),
-        Animated.timing(walletScale, { toValue: 1, duration: 60, useNativeDriver: true }),
+        Animated.timing(walletScale, { toValue: 2, duration: 50, useNativeDriver: true }),
+        Animated.timing(walletScale, { toValue: 1, duration: 50, useNativeDriver: true }),
       ]).start();
     });
   };
 
   const countRep = useCallback(() => {
     const now = Date.now();
-    if (now - lastRepTimeRef.current < 350) return;
+    if (now - lastRepTimeRef.current < 300) return;
     lastRepTimeRef.current = now;
 
     setRepCount((prev) => prev + 1);
@@ -165,15 +143,13 @@ export default function WorkoutScreen() {
     }));
 
     Animated.sequence([
-      Animated.timing(repScale, { toValue: 1.8, duration: 50, useNativeDriver: true }),
-      Animated.timing(repScale, { toValue: 1, duration: 50, useNativeDriver: true }),
+      Animated.timing(repScale, { toValue: 2, duration: 40, useNativeDriver: true }),
+      Animated.timing(repScale, { toValue: 1, duration: 40, useNativeDriver: true }),
     ]).start();
 
     playChaChing();
     animateCoin();
     saveRepToBackend();
-    setStatusMessage('💰 CHA-CHING!');
-    setTimeout(() => setStatusMessage('Keep going!'), 500);
   }, [exerciseType]);
 
   const saveRepToBackend = async () => {
@@ -188,67 +164,121 @@ export default function WorkoutScreen() {
 
   const startTracking = async () => {
     setIsTracking(true);
-    setStatusMessage('Tracking motion...');
-    movementPhaseRef.current = 'rest';
-    peakGyroRef.current = 0;
-    samplesRef.current = [];
+    setStatusMessage('Calibrating...');
+    setPhase('rest');
+    
+    // Reset
+    movementHistoryRef.current = [];
+    baselineRef.current = null;
+    inMotionRef.current = false;
+    peakMotionRef.current = 0;
 
-    // Start accelerometer
-    Accelerometer.setUpdateInterval(50);
+    // Use both accelerometer and gyroscope
+    Accelerometer.setUpdateInterval(30);
+    Gyroscope.setUpdateInterval(30);
+
+    let calibrationSamples: number[] = [];
+    let sampleCount = 0;
+
     accelSubRef.current = Accelerometer.addListener(({ x, y, z }) => {
-      setAccelData({ x, y, z });
+      const accelMag = Math.sqrt(x*x + y*y + z*z);
       
-      // Simple motion detection based on acceleration changes
-      const magnitude = Math.sqrt(x*x + y*y + z*z);
-      samplesRef.current.push(magnitude);
-      if (samplesRef.current.length > 10) samplesRef.current.shift();
+      // Calibration (first 20 samples)
+      if (baselineRef.current === null) {
+        calibrationSamples.push(accelMag);
+        sampleCount++;
+        if (sampleCount >= 20) {
+          baselineRef.current = calibrationSamples.reduce((a,b) => a+b, 0) / calibrationSamples.length;
+          setStatusMessage('GO! Start exercising');
+        }
+        return;
+      }
+
+      // Calculate deviation from baseline
+      const deviation = Math.abs(accelMag - baselineRef.current);
       
-      // Calculate variance in recent samples
-      if (samplesRef.current.length >= 5) {
-        const avg = samplesRef.current.reduce((a,b) => a+b, 0) / samplesRef.current.length;
-        const variance = samplesRef.current.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / samplesRef.current.length;
-        
-        // High variance = movement
-        if (variance > 0.01) { // Very sensitive
-          if (movementPhaseRef.current === 'rest') {
-            movementPhaseRef.current = 'active';
-            setStatusMessage('⬇️ Moving...');
-          }
-        } else {
-          // Low variance = stopped moving
-          if (movementPhaseRef.current === 'active') {
-            // Movement stopped = rep complete!
+      // Track movement history
+      movementHistoryRef.current.push(deviation);
+      if (movementHistoryRef.current.length > 8) {
+        movementHistoryRef.current.shift();
+      }
+
+      // Get average recent movement
+      const avgMovement = movementHistoryRef.current.reduce((a,b) => a+b, 0) / movementHistoryRef.current.length;
+
+      // Very low threshold for detection
+      const MOTION_START_THRESHOLD = 0.02;
+      const MOTION_PEAK_THRESHOLD = 0.05;
+      const MOTION_END_THRESHOLD = 0.015;
+
+      if (!inMotionRef.current) {
+        // Looking for motion to start
+        if (avgMovement > MOTION_START_THRESHOLD) {
+          inMotionRef.current = true;
+          motionStartTimeRef.current = Date.now();
+          peakMotionRef.current = avgMovement;
+          setPhase('down');
+          setStatusMessage('⬇️ DOWN');
+          
+          Animated.timing(phaseScale, { toValue: 1.2, duration: 100, useNativeDriver: true }).start();
+        }
+      } else {
+        // Track peak motion
+        if (avgMovement > peakMotionRef.current) {
+          peakMotionRef.current = avgMovement;
+        }
+
+        // Check if motion is ending (returning to rest)
+        if (avgMovement < MOTION_END_THRESHOLD) {
+          const motionDuration = Date.now() - motionStartTimeRef.current;
+          
+          // Valid rep: motion lasted at least 200ms and had enough peak movement
+          if (motionDuration > 200 && peakMotionRef.current > MOTION_PEAK_THRESHOLD) {
+            setPhase('up');
+            setStatusMessage('⬆️ UP - REP!');
             countRep();
-            movementPhaseRef.current = 'rest';
+            
+            Animated.sequence([
+              Animated.timing(phaseScale, { toValue: 1.5, duration: 50, useNativeDriver: true }),
+              Animated.timing(phaseScale, { toValue: 1, duration: 50, useNativeDriver: true }),
+            ]).start();
+
+            setTimeout(() => {
+              setPhase('rest');
+              setStatusMessage('Ready...');
+            }, 300);
+          } else {
+            setPhase('rest');
+            setStatusMessage('Ready...');
           }
+          
+          // Reset for next rep
+          inMotionRef.current = false;
+          peakMotionRef.current = 0;
         }
       }
     });
 
-    // Start gyroscope for rotation detection (backup)
-    Gyroscope.setUpdateInterval(50);
+    // Also listen to gyroscope as backup
     gyroSubRef.current = Gyroscope.addListener(({ x, y, z }) => {
-      setGyroData({ x, y, z });
+      const gyroMag = Math.sqrt(x*x + y*y + z*z);
       
-      // Track peak rotation
-      const rotMag = Math.sqrt(x*x + y*y + z*z);
-      if (rotMag > peakGyroRef.current) {
-        peakGyroRef.current = rotMag;
-      }
-      
-      // Significant rotation can also trigger rep detection
-      if (rotMag > 1.5 && movementPhaseRef.current === 'rest') {
-        movementPhaseRef.current = 'active';
-        setStatusMessage('🔄 Rotation detected');
-      } else if (rotMag < 0.3 && movementPhaseRef.current === 'active' && peakGyroRef.current > 1.5) {
-        countRep();
-        movementPhaseRef.current = 'rest';
-        peakGyroRef.current = 0;
+      // If we detect significant rotation while not in motion, start motion
+      if (!inMotionRef.current && gyroMag > 0.5) {
+        inMotionRef.current = true;
+        motionStartTimeRef.current = Date.now();
+        peakMotionRef.current = 0.1;
+        setPhase('down');
+        setStatusMessage('🔄 Motion detected');
       }
     });
   };
 
-  const stopAllSensors = () => {
+  const stopTracking = () => {
+    setIsTracking(false);
+    setStatusMessage('Press START');
+    setPhase('rest');
+    
     if (accelSubRef.current) {
       accelSubRef.current.remove();
       accelSubRef.current = null;
@@ -259,18 +289,10 @@ export default function WorkoutScreen() {
     }
   };
 
-  const stopTracking = () => {
-    setIsTracking(false);
-    setStatusMessage('Tap START to begin');
-    stopAllSensors();
-  };
-
   const toggleTracking = () => {
     if (isTracking) stopTracking();
     else startTracking();
   };
-
-  const handleManualRep = () => countRep();
 
   const toggleCameraFacing = () => setFacing((prev) => (prev === 'front' ? 'back' : 'front'));
 
@@ -288,6 +310,14 @@ export default function WorkoutScreen() {
       });
     } catch (error) {}
     router.push('/wallet');
+  };
+
+  const getPhaseColor = () => {
+    switch (phase) {
+      case 'down': return '#FF6B6B';
+      case 'up': return '#4CAF50';
+      default: return '#FFD700';
+    }
   };
 
   if (!permission) {
@@ -325,17 +355,12 @@ export default function WorkoutScreen() {
             <Ionicons name="arrow-back" size={24} color="#FFF" />
           </TouchableOpacity>
           <Animated.View style={[styles.walletIndicator, { transform: [{ scale: walletScale }] }]}>
-            <Ionicons name="wallet" size={26} color="#FFD700" />
+            <Ionicons name="wallet" size={28} color="#FFD700" />
             <Text style={styles.walletCoins}>{coinsEarned}</Text>
           </Animated.View>
           <TouchableOpacity style={styles.headerButton} onPress={toggleCameraFacing}>
             <Ionicons name="camera-reverse" size={24} color="#FFF" />
           </TouchableOpacity>
-        </View>
-
-        {/* Sensor Status - IMPORTANT FOR DEBUGGING */}
-        <View style={styles.sensorStatus}>
-          <Text style={styles.sensorStatusText}>{sensorAvailable}</Text>
         </View>
 
         {/* Exercise selector */}
@@ -344,44 +369,37 @@ export default function WorkoutScreen() {
             style={[styles.exerciseButton, exerciseType === 'pushup' && styles.exerciseButtonActive]}
             onPress={() => setExerciseType('pushup')}
           >
-            <MaterialCommunityIcons name="arm-flex" size={20} color={exerciseType === 'pushup' ? '#000' : '#FFF'} />
+            <MaterialCommunityIcons name="arm-flex" size={22} color={exerciseType === 'pushup' ? '#000' : '#FFF'} />
             <Text style={[styles.exerciseButtonText, exerciseType === 'pushup' && styles.exerciseButtonTextActive]}>Push-ups</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.exerciseButton, exerciseType === 'situp' && styles.exerciseButtonActive]}
             onPress={() => setExerciseType('situp')}
           >
-            <MaterialCommunityIcons name="human" size={20} color={exerciseType === 'situp' ? '#000' : '#FFF'} />
+            <MaterialCommunityIcons name="human" size={22} color={exerciseType === 'situp' ? '#000' : '#FFF'} />
             <Text style={[styles.exerciseButtonText, exerciseType === 'situp' && styles.exerciseButtonTextActive]}>Sit-ups</Text>
           </TouchableOpacity>
         </View>
 
         {/* Rep counter */}
         <View style={styles.repDisplay}>
-          <Animated.View style={[styles.repCounter, { transform: [{ scale: repScale }] }]}>
-            <Text style={styles.repNumber}>{repCount}</Text>
+          <Animated.View style={[styles.repCounter, { transform: [{ scale: repScale }], borderColor: getPhaseColor() }]}>
+            <Text style={[styles.repNumber, { color: getPhaseColor() }]}>{repCount}</Text>
             <Text style={styles.repLabel}>REPS</Text>
           </Animated.View>
-          <View style={[styles.statusBadge, isTracking && styles.statusBadgeActive]}>
+          
+          <Animated.View style={[styles.statusBadge, { backgroundColor: getPhaseColor(), transform: [{ scale: phaseScale }] }]}>
             <Text style={styles.statusText}>{statusMessage}</Text>
-          </View>
-        </View>
+          </Animated.View>
 
-        {/* Live Sensor Data - Shows if sensors are working */}
-        {isTracking && (
-          <View style={styles.sensorDataBox}>
-            <Text style={styles.sensorTitle}>📊 LIVE SENSOR DATA</Text>
-            <Text style={styles.sensorLine}>
-              Accel: X:{accelData.x.toFixed(2)} Y:{accelData.y.toFixed(2)} Z:{accelData.z.toFixed(2)}
-            </Text>
-            <Text style={styles.sensorLine}>
-              Gyro: X:{gyroData.x.toFixed(2)} Y:{gyroData.y.toFixed(2)} Z:{gyroData.z.toFixed(2)}
-            </Text>
-            <Text style={styles.sensorHint}>
-              Move your phone - numbers should change!
-            </Text>
-          </View>
-        )}
+          {/* Instructions */}
+          {isTracking && (
+            <View style={styles.instructionBox}>
+              <Text style={styles.instructionText}>📱 Place phone where it can sense your movement</Text>
+              <Text style={styles.instructionText}>🏋️ Do full reps - down then up</Text>
+            </View>
+          )}
+        </View>
 
         {/* Coin animations */}
         {coinAnimations.map((coin) => (
@@ -398,10 +416,10 @@ export default function WorkoutScreen() {
           </Animated.View>
         ))}
 
-        {/* Bottom controls */}
-        <View style={[styles.bottomControls, { paddingBottom: insets.bottom + 16 }]}>
+        {/* Bottom controls - Only START/STOP and END */}
+        <View style={[styles.bottomControls, { paddingBottom: insets.bottom + 20 }]}>
           <TouchableOpacity style={styles.endButton} onPress={endWorkout}>
-            <Ionicons name="stop-circle" size={40} color="#FF4444" />
+            <Ionicons name="stop-circle" size={50} color="#FF4444" />
             <Text style={styles.endButtonText}>END</Text>
           </TouchableOpacity>
 
@@ -409,15 +427,11 @@ export default function WorkoutScreen() {
             style={[styles.mainButton, isTracking && styles.mainButtonActive]}
             onPress={toggleTracking}
           >
-            <Ionicons name={isTracking ? 'pause' : 'play'} size={50} color="#000" />
-            <Text style={styles.mainButtonText}>{isTracking ? 'STOP' : 'START'}</Text>
+            <Ionicons name={isTracking ? 'pause' : 'fitness'} size={60} color="#000" />
+            <Text style={styles.mainButtonText}>{isTracking ? 'PAUSE' : 'START'}</Text>
           </TouchableOpacity>
 
-          {/* BIG TAP BUTTON - Primary way to count */}
-          <TouchableOpacity style={styles.tapButton} onPress={handleManualRep}>
-            <Text style={styles.tapButtonBig}>TAP</Text>
-            <Text style={styles.tapButtonSmall}>each rep</Text>
-          </TouchableOpacity>
+          <View style={{ width: 70 }} />
         </View>
       </CameraView>
     </View>
@@ -434,80 +448,63 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, zIndex: 10,
   },
   headerButton: {
-    width: 50, height: 50, borderRadius: 25,
+    width: 52, height: 52, borderRadius: 26,
     backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center',
   },
   walletIndicator: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.85)', paddingHorizontal: 22, paddingVertical: 14,
-    borderRadius: 35, borderWidth: 3, borderColor: '#FFD700',
+    backgroundColor: 'rgba(0,0,0,0.85)', paddingHorizontal: 24, paddingVertical: 16,
+    borderRadius: 40, borderWidth: 4, borderColor: '#FFD700',
   },
-  walletCoins: { color: '#FFD700', fontSize: 28, fontWeight: 'bold', marginLeft: 10 },
-  sensorStatus: {
-    position: 'absolute', top: 75, left: 16, right: 16,
-    backgroundColor: 'rgba(0,0,0,0.8)', padding: 10, borderRadius: 10,
-  },
-  sensorStatusText: { color: '#FFF', fontSize: 12, textAlign: 'center' },
+  walletCoins: { color: '#FFD700', fontSize: 32, fontWeight: 'bold', marginLeft: 12 },
   exerciseSelector: {
-    position: 'absolute', top: 120, left: 16, right: 16,
-    flexDirection: 'row', justifyContent: 'center', gap: 10,
+    position: 'absolute', top: 110, left: 16, right: 16,
+    flexDirection: 'row', justifyContent: 'center', gap: 12,
   },
   exerciseButton: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.6)', borderWidth: 2, borderColor: '#555',
+    paddingHorizontal: 20, paddingVertical: 12, borderRadius: 25,
+    backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 2, borderColor: '#555',
   },
   exerciseButtonActive: { backgroundColor: '#FFD700', borderColor: '#FFD700' },
-  exerciseButtonText: { color: '#FFF', marginLeft: 6, fontWeight: '700', fontSize: 14 },
+  exerciseButtonText: { color: '#FFF', marginLeft: 8, fontWeight: '700', fontSize: 16 },
   exerciseButtonTextActive: { color: '#000' },
-  repDisplay: { position: 'absolute', top: height * 0.18, alignSelf: 'center', alignItems: 'center' },
+  repDisplay: { position: 'absolute', top: height * 0.2, alignSelf: 'center', alignItems: 'center' },
   repCounter: {
-    width: 160, height: 160, borderRadius: 80,
-    backgroundColor: 'rgba(0,0,0,0.9)', borderWidth: 6, borderColor: '#FFD700',
+    width: 180, height: 180, borderRadius: 90,
+    backgroundColor: 'rgba(0,0,0,0.9)', borderWidth: 8,
     alignItems: 'center', justifyContent: 'center',
   },
-  repNumber: { fontSize: 76, fontWeight: 'bold', color: '#FFD700' },
-  repLabel: { fontSize: 18, color: '#AAA', marginTop: -8, fontWeight: '700' },
+  repNumber: { fontSize: 90, fontWeight: 'bold' },
+  repLabel: { fontSize: 20, color: '#888', marginTop: -10, fontWeight: '700' },
   statusBadge: {
-    marginTop: 16, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 25,
-    backgroundColor: 'rgba(0,0,0,0.85)', borderWidth: 2, borderColor: '#555',
+    marginTop: 20, paddingHorizontal: 30, paddingVertical: 14, borderRadius: 30,
   },
-  statusBadgeActive: { backgroundColor: 'rgba(76,175,80,0.5)', borderColor: '#4CAF50' },
-  statusText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
-  sensorDataBox: {
-    position: 'absolute', top: height * 0.48, left: 16, right: 16,
-    backgroundColor: 'rgba(0,0,0,0.9)', padding: 12, borderRadius: 12,
-    borderWidth: 1, borderColor: '#444',
+  statusText: { color: '#000', fontSize: 18, fontWeight: '900' },
+  instructionBox: {
+    marginTop: 20, backgroundColor: 'rgba(0,0,0,0.8)', padding: 16, borderRadius: 12,
   },
-  sensorTitle: { color: '#FFD700', fontSize: 12, fontWeight: 'bold', marginBottom: 6 },
-  sensorLine: { color: '#0F0', fontSize: 11, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
-  sensorHint: { color: '#888', fontSize: 10, marginTop: 6, fontStyle: 'italic' },
-  flyingCoin: { position: 'absolute', top: height * 0.42, alignSelf: 'center', zIndex: 100 },
+  instructionText: { color: '#FFF', fontSize: 13, marginBottom: 4 },
+  flyingCoin: { position: 'absolute', top: height * 0.45, alignSelf: 'center', zIndex: 100 },
   coinIcon: {
-    width: 90, height: 90, borderRadius: 45,
+    width: 100, height: 100, borderRadius: 50,
     backgroundColor: '#FFD700', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 6, borderColor: '#DAA520',
+    borderWidth: 8, borderColor: '#DAA520',
   },
-  coinText: { fontSize: 48, fontWeight: 'bold', color: '#8B4513' },
+  coinText: { fontSize: 55, fontWeight: 'bold', color: '#8B4513' },
   bottomControls: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center',
-    paddingHorizontal: 10, backgroundColor: 'rgba(0,0,0,0.9)', paddingTop: 16,
+    paddingHorizontal: 20, backgroundColor: 'rgba(0,0,0,0.9)', paddingTop: 20,
   },
   endButton: { alignItems: 'center', width: 70 },
-  endButtonText: { color: '#FF4444', fontSize: 12, marginTop: 2, fontWeight: 'bold' },
+  endButtonText: { color: '#FF4444', fontSize: 14, marginTop: 4, fontWeight: 'bold' },
   mainButton: {
-    alignItems: 'center', justifyContent: 'center', width: 120, height: 120, borderRadius: 60,
+    alignItems: 'center', justifyContent: 'center', width: 150, height: 150, borderRadius: 75,
     backgroundColor: '#FFD700',
   },
   mainButtonActive: { backgroundColor: '#4CAF50' },
-  mainButtonText: { color: '#000', fontSize: 14, fontWeight: 'bold', marginTop: 2 },
-  tapButton: {
-    alignItems: 'center', justifyContent: 'center', width: 85, height: 85, borderRadius: 42,
-    backgroundColor: '#2196F3',
-  },
-  tapButtonBig: { color: '#FFF', fontSize: 22, fontWeight: 'bold' },
-  tapButtonSmall: { color: '#FFF', fontSize: 10, opacity: 0.8 },
+  mainButtonText: { color: '#000', fontSize: 18, fontWeight: 'bold', marginTop: 4 },
   permissionContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   permissionTitle: { fontSize: 24, fontWeight: 'bold', color: '#FFF', marginTop: 24, marginBottom: 16 },
   permissionText: { fontSize: 16, color: '#AAA', textAlign: 'center', marginBottom: 32 },
