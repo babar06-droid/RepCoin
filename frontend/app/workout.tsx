@@ -306,23 +306,6 @@ export default function WorkoutScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Camera view */}
       <CameraView style={styles.camera} facing={facing}>
-        {/* Pose overlay guide */}
-        <View style={styles.poseOverlay}>
-          {isTracking && (
-            <View style={styles.poseGuide}>
-              <View style={styles.bodyOutline}>
-                <View style={[styles.jointDot, { top: 10, alignSelf: 'center' }]} />
-                <View style={[styles.jointDot, { top: 40, left: 20 }]} />
-                <View style={[styles.jointDot, { top: 40, right: 20 }]} />
-                <View style={[styles.jointDot, { top: 80, left: 10 }]} />
-                <View style={[styles.jointDot, { top: 80, right: 10 }]} />
-                <View style={[styles.jointDot, { bottom: 30, left: 25 }]} />
-                <View style={[styles.jointDot, { bottom: 30, right: 25 }]} />
-              </View>
-            </View>
-          )}
-        </View>
-
         {/* Header controls */}
         <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
           <TouchableOpacity
@@ -342,12 +325,7 @@ export default function WorkoutScreen() {
             <Text style={styles.walletCoins}>{coinsEarned}</Text>
           </Animated.View>
 
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={toggleCameraFacing}
-          >
-            <Ionicons name="camera-reverse" size={24} color="#FFF" />
-          </TouchableOpacity>
+          <View style={{ width: 44 }} />
         </View>
 
         {/* Exercise type selector */}
