@@ -264,9 +264,6 @@ export default function WorkoutScreen() {
 
   // End workout session
   const endWorkout = async () => {
-    if (poseTimerRef.current) {
-      clearInterval(poseTimerRef.current);
-    }
     setIsTracking(false);
 
     // Save session
