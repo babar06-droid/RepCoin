@@ -6,8 +6,6 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
-  Platform,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,16 +34,13 @@ export default function WorkoutScreen() {
 
   // State
   const [exerciseType, setExerciseType] = useState<ExerciseType>('pushup');
-  const [isTracking, setIsTracking] = useState(false);
   const [repCount, setRepCount] = useState(0);
   const [coinsEarned, setCoinsEarned] = useState(0);
   const [facing, setFacing] = useState<CameraType>('front');
   const [coinAnimations, setCoinAnimations] = useState<CoinAnimation[]>([]);
-  const [posePhase, setPosePhase] = useState<'up' | 'down'>('up');
   const [sessionStats, setSessionStats] = useState({ pushups: 0, situps: 0 });
 
-  // Sound ref
-  const soundRef = useRef<Audio.Sound | null>(null);
+  // Sound refs
   const coinIdRef = useRef(0);
 
   // Animation values
