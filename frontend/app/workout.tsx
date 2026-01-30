@@ -386,21 +386,6 @@ export default function WorkoutScreen() {
             <Text style={styles.repNumber}>{repCount}</Text>
             <Text style={styles.repLabel}>REPS</Text>
           </Animated.View>
-
-          {/* Pose phase indicator */}
-          {isTracking && (
-            <View style={styles.phaseIndicator}>
-              <View
-                style={[
-                  styles.phaseDot,
-                  posePhase === 'up' && styles.phaseDotActive,
-                ]}
-              />
-              <Text style={styles.phaseText}>
-                {posePhase === 'up' ? 'UP' : 'DOWN'}
-              </Text>
-            </View>
-          )}
         </View>
 
         {/* Coin animations */}
