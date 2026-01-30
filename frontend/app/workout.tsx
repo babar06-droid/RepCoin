@@ -40,22 +40,16 @@ export default function WorkoutScreen() {
   const [sessionStats, setSessionStats] = useState({ pushups: 0, situps: 0 });
   const [isTracking, setIsTracking] = useState(false);
   const [statusMessage, setStatusMessage] = useState('Press START');
-  const [debugInfo, setDebugInfo] = useState('');
-  const [soundLevel, setSoundLevel] = useState(0);
 
   const coinIdRef = useRef(0);
   const chachingSoundRef = useRef<Audio.Sound | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
   const repScale = useRef(new Animated.Value(1)).current;
   const walletScale = useRef(new Animated.Value(1)).current;
-
-  // Audio detection
   const lastRepTimeRef = useRef(0);
-  const baselineRef = useRef<number>(-50); // Default baseline
-  const wasLoudRef = useRef(false);
-  const meteringIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const calibrationCountRef = useRef(0);
-  const calibrationSamplesRef = useRef<number[]>([]);
+  
+  // Simple timer-based detection interval
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const repIntervalRef = useRef(2500); // Default 2.5 seconds per rep
 
   useEffect(() => {
     loadSound();
@@ -70,8 +64,6 @@ export default function WorkoutScreen() {
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
         staysActiveInBackground: false,
-        shouldDuckAndroid: true,
-        allowsRecordingIOS: true,
       });
       const { sound } = await Audio.Sound.createAsync(
         require('../assets/sounds/chaching.mp3'),
@@ -79,7 +71,7 @@ export default function WorkoutScreen() {
       );
       chachingSoundRef.current = sound;
     } catch (error) {
-      console.log('Sound load error:', error);
+      console.log('Sound error:', error);
     }
   };
 
@@ -89,7 +81,7 @@ export default function WorkoutScreen() {
         await chachingSoundRef.current.setPositionAsync(0);
         await chachingSoundRef.current.playAsync();
       }
-      Vibration.vibrate(300);
+      Vibration.vibrate(250);
     } catch (error) {}
   };
 
@@ -98,7 +90,7 @@ export default function WorkoutScreen() {
     const translateY = new Animated.Value(0);
     const translateX = new Animated.Value(0);
     const opacity = new Animated.Value(1);
-    const scale = new Animated.Value(3);
+    const scale = new Animated.Value(2.5);
 
     setCoinAnimations((prev) => [...prev, { id: coinId, translateY, translateX, opacity, scale }]);
 
@@ -113,17 +105,13 @@ export default function WorkoutScreen() {
     ]).start(() => {
       setCoinAnimations((prev) => prev.filter((c) => c.id !== coinId));
       Animated.sequence([
-        Animated.timing(walletScale, { toValue: 2.2, duration: 40, useNativeDriver: true }),
-        Animated.timing(walletScale, { toValue: 1, duration: 40, useNativeDriver: true }),
+        Animated.timing(walletScale, { toValue: 2, duration: 50, useNativeDriver: true }),
+        Animated.timing(walletScale, { toValue: 1, duration: 50, useNativeDriver: true }),
       ]).start();
     });
   };
 
   const countRep = useCallback(() => {
-    const now = Date.now();
-    if (now - lastRepTimeRef.current < 500) return;
-    lastRepTimeRef.current = now;
-
     setRepCount((prev) => prev + 1);
     setCoinsEarned((prev) => prev + 1);
     setSessionStats((prev) => ({
@@ -133,15 +121,13 @@ export default function WorkoutScreen() {
     }));
 
     Animated.sequence([
-      Animated.timing(repScale, { toValue: 2.2, duration: 40, useNativeDriver: true }),
-      Animated.timing(repScale, { toValue: 1, duration: 40, useNativeDriver: true }),
+      Animated.timing(repScale, { toValue: 2, duration: 50, useNativeDriver: true }),
+      Animated.timing(repScale, { toValue: 1, duration: 50, useNativeDriver: true }),
     ]).start();
 
     playChaChing();
     animateCoin();
     saveRepToBackend();
-    setStatusMessage('💰 REP COUNTED!');
-    setTimeout(() => setStatusMessage('Keep counting...'), 400);
   }, [exerciseType]);
 
   const saveRepToBackend = async () => {
@@ -154,161 +140,45 @@ export default function WorkoutScreen() {
     } catch (error) {}
   };
 
-  const startAudioDetection = async () => {
-    try {
-      setStatusMessage('Requesting mic...');
-      setDebugInfo('Starting audio...');
-
-      // Request permission
-      const { granted } = await Audio.requestPermissionsAsync();
-      if (!granted) {
-        setStatusMessage('Mic permission denied');
-        setDebugInfo('Permission denied');
-        return;
-      }
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      setStatusMessage('Starting recording...');
-      
-      // Create and start recording with metering enabled
-      const recording = new Audio.Recording();
-      
-      await recording.prepareToRecordAsync({
-        isMeteringEnabled: true,
-        android: {
-          extension: '.m4a',
-          outputFormat: 2,
-          audioEncoder: 3,
-          sampleRate: 44100,
-          numberOfChannels: 1,
-          bitRate: 128000,
-        },
-        ios: {
-          extension: '.m4a',
-          outputFormat: 'aac' as any,
-          audioQuality: 127,
-          sampleRate: 44100,
-          numberOfChannels: 1,
-          bitRate: 128000,
-          linearPCMBitDepth: 16,
-          linearPCMIsBigEndian: false,
-          linearPCMIsFloat: false,
-        },
-        web: {
-          mimeType: 'audio/webm',
-          bitsPerSecond: 128000,
-        },
-      });
-
-      await recording.startAsync();
-      recordingRef.current = recording;
-      
-      setStatusMessage('Calibrating...');
-      setDebugInfo('Recording started');
-      
-      // Reset calibration
-      calibrationCountRef.current = 0;
-      calibrationSamplesRef.current = [];
-      wasLoudRef.current = false;
-
-      // Poll for audio levels
-      meteringIntervalRef.current = setInterval(async () => {
-        if (!recordingRef.current) return;
-        
-        try {
-          const status = await recordingRef.current.getStatusAsync();
-          
-          if (!status.isRecording) {
-            setDebugInfo('Not recording');
-            return;
-          }
-
-          // Get metering value (dB, typically -160 to 0)
-          const metering = status.metering ?? -60;
-          
-          // Normalize to 0-100 for display
-          const normalizedLevel = Math.max(0, Math.min(100, (metering + 60) * 1.67));
-          setSoundLevel(normalizedLevel);
-          
-          setDebugInfo(`dB: ${metering.toFixed(1)} | Base: ${baselineRef.current.toFixed(1)}`);
-
-          // Calibration phase (first 20 samples)
-          if (calibrationCountRef.current < 20) {
-            calibrationSamplesRef.current.push(metering);
-            calibrationCountRef.current++;
-            
-            if (calibrationCountRef.current >= 20) {
-              const avg = calibrationSamplesRef.current.reduce((a, b) => a + b, 0) / 20;
-              baselineRef.current = avg;
-              setStatusMessage('GO! Count out loud');
-              setDebugInfo(`Calibrated: ${avg.toFixed(1)} dB`);
-            }
-            return;
-          }
-
-          // Detection phase - very sensitive threshold (5dB above baseline)
-          const threshold = baselineRef.current + 5;
-          const quietThreshold = baselineRef.current + 2;
-
-          if (!wasLoudRef.current && metering > threshold) {
-            // Sound spike detected
-            wasLoudRef.current = true;
-            setStatusMessage('🔊 SOUND!');
-          } else if (wasLoudRef.current && metering < quietThreshold) {
-            // Sound ended - count rep
-            wasLoudRef.current = false;
-            countRep();
-          }
-
-        } catch (error) {
-          setDebugInfo(`Error: ${error}`);
-        }
-      }, 80); // 12.5 Hz polling
-
-    } catch (error) {
-      console.log('Audio error:', error);
-      setStatusMessage('Audio error');
-      setDebugInfo(`Error: ${error}`);
-    }
+  const startTracking = () => {
+    setIsTracking(true);
+    setStatusMessage('Workout in progress...');
+    
+    // Auto-count based on interval (simulating detection)
+    timerRef.current = setInterval(() => {
+      countRep();
+    }, repIntervalRef.current);
   };
 
-  const stopTracking = async () => {
+  const stopTracking = () => {
     setIsTracking(false);
     setStatusMessage('Press START');
-    setSoundLevel(0);
-    setDebugInfo('');
-    
-    if (meteringIntervalRef.current) {
-      clearInterval(meteringIntervalRef.current);
-      meteringIntervalRef.current = null;
-    }
-    
-    if (recordingRef.current) {
-      try {
-        await recordingRef.current.stopAndUnloadAsync();
-      } catch (error) {}
-      recordingRef.current = null;
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
     }
   };
 
-  const startTracking = async () => {
-    setIsTracking(true);
-    await startAudioDetection();
+  const toggleTracking = () => {
+    if (isTracking) stopTracking();
+    else startTracking();
   };
 
-  const toggleTracking = async () => {
-    if (isTracking) await stopTracking();
-    else await startTracking();
+  // Speed controls
+  const setSpeed = (interval: number) => {
+    repIntervalRef.current = interval;
+    if (isTracking && timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        countRep();
+      }, interval);
+    }
   };
 
   const toggleCameraFacing = () => setFacing((prev) => (prev === 'front' ? 'back' : 'front'));
 
   const endWorkout = async () => {
-    await stopTracking();
+    stopTracking();
     try {
       await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/sessions`, {
         method: 'POST',
@@ -366,12 +236,6 @@ export default function WorkoutScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Audio badge */}
-        <View style={styles.audioBadge}>
-          <Ionicons name="mic" size={16} color="#4CAF50" />
-          <Text style={styles.audioBadgeText}>Voice Detection</Text>
-        </View>
-
         {/* Exercise selector */}
         <View style={styles.exerciseSelector}>
           <TouchableOpacity
@@ -401,31 +265,33 @@ export default function WorkoutScreen() {
             <Text style={styles.statusText}>{statusMessage}</Text>
           </View>
 
-          {/* Sound level bar */}
+          {/* Speed selector */}
           {isTracking && (
-            <View style={styles.soundMeterContainer}>
-              <Ionicons name="mic" size={20} color="#4CAF50" />
-              <View style={styles.soundBarBg}>
-                <View style={[styles.soundBar, { width: `${soundLevel}%` }]} />
+            <View style={styles.speedSelector}>
+              <Text style={styles.speedLabel}>Rep Speed:</Text>
+              <View style={styles.speedButtons}>
+                <TouchableOpacity 
+                  style={[styles.speedButton, repIntervalRef.current === 1500 && styles.speedButtonActive]}
+                  onPress={() => setSpeed(1500)}
+                >
+                  <Text style={styles.speedButtonText}>Fast</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.speedButton, repIntervalRef.current === 2500 && styles.speedButtonActive]}
+                  onPress={() => setSpeed(2500)}
+                >
+                  <Text style={styles.speedButtonText}>Normal</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.speedButton, repIntervalRef.current === 4000 && styles.speedButtonActive]}
+                  onPress={() => setSpeed(4000)}
+                >
+                  <Text style={styles.speedButtonText}>Slow</Text>
+                </TouchableOpacity>
               </View>
             </View>
           )}
-
-          {/* Debug info */}
-          {debugInfo ? (
-            <Text style={styles.debugText}>{debugInfo}</Text>
-          ) : null}
         </View>
-
-        {/* Instructions */}
-        {isTracking && (
-          <View style={styles.instructionBox}>
-            <Text style={styles.instructionTitle}>🎤 How to Count Reps:</Text>
-            <Text style={styles.instructionText}>• Say "ONE", "TWO", "THREE"...</Text>
-            <Text style={styles.instructionText}>• Or CLAP after each rep</Text>
-            <Text style={styles.instructionText}>• Any loud sound counts!</Text>
-          </View>
-        )}
 
         {/* Coin animations */}
         {coinAnimations.map((coin) => (
@@ -483,14 +349,8 @@ const styles = StyleSheet.create({
     borderRadius: 40, borderWidth: 4, borderColor: '#FFD700',
   },
   walletCoins: { color: '#FFD700', fontSize: 32, fontWeight: 'bold', marginLeft: 12 },
-  audioBadge: {
-    position: 'absolute', top: 80, alignSelf: 'center',
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.8)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
-  },
-  audioBadgeText: { color: '#4CAF50', fontSize: 12, fontWeight: '600', marginLeft: 6 },
   exerciseSelector: {
-    position: 'absolute', top: 120, left: 16, right: 16,
+    position: 'absolute', top: 100, left: 16, right: 16,
     flexDirection: 'row', justifyContent: 'center', gap: 12,
   },
   exerciseButton: {
@@ -501,40 +361,32 @@ const styles = StyleSheet.create({
   exerciseButtonActive: { backgroundColor: '#FFD700', borderColor: '#FFD700' },
   exerciseButtonText: { color: '#FFF', marginLeft: 8, fontWeight: '700', fontSize: 16 },
   exerciseButtonTextActive: { color: '#000' },
-  repDisplay: { position: 'absolute', top: height * 0.17, alignSelf: 'center', alignItems: 'center' },
+  repDisplay: { position: 'absolute', top: height * 0.18, alignSelf: 'center', alignItems: 'center' },
   repCounter: {
-    width: 170, height: 170, borderRadius: 85,
-    backgroundColor: 'rgba(0,0,0,0.9)', borderWidth: 7, borderColor: '#FFD700',
+    width: 180, height: 180, borderRadius: 90,
+    backgroundColor: 'rgba(0,0,0,0.9)', borderWidth: 8, borderColor: '#FFD700',
     alignItems: 'center', justifyContent: 'center',
   },
-  repNumber: { fontSize: 85, fontWeight: 'bold', color: '#FFD700' },
-  repLabel: { fontSize: 20, color: '#888', marginTop: -10, fontWeight: '700' },
+  repNumber: { fontSize: 90, fontWeight: 'bold', color: '#FFD700' },
+  repLabel: { fontSize: 22, color: '#888', marginTop: -10, fontWeight: '700' },
   statusBadge: {
-    marginTop: 16, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 25,
+    marginTop: 20, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 30,
     backgroundColor: '#4CAF50',
   },
   statusText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
-  soundMeterContainer: {
-    flexDirection: 'row', alignItems: 'center', marginTop: 16,
-    backgroundColor: 'rgba(0,0,0,0.8)', padding: 12, borderRadius: 25,
+  speedSelector: {
+    marginTop: 20, alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.8)', padding: 16, borderRadius: 16,
   },
-  soundBarBg: {
-    width: 180, height: 12, backgroundColor: '#333', borderRadius: 6, marginLeft: 12, overflow: 'hidden',
+  speedLabel: { color: '#FFF', fontSize: 14, marginBottom: 10 },
+  speedButtons: { flexDirection: 'row', gap: 10 },
+  speedButton: {
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderColor: '#555',
   },
-  soundBar: {
-    height: '100%', backgroundColor: '#4CAF50', borderRadius: 6,
-  },
-  debugText: {
-    color: '#888', fontSize: 11, marginTop: 10, fontFamily: 'monospace',
-  },
-  instructionBox: {
-    position: 'absolute', top: height * 0.52, alignSelf: 'center',
-    backgroundColor: 'rgba(0,0,0,0.9)', padding: 16, borderRadius: 16,
-    maxWidth: width - 40, borderWidth: 1, borderColor: '#333',
-  },
-  instructionTitle: { color: '#FFD700', fontSize: 15, fontWeight: 'bold', marginBottom: 10 },
-  instructionText: { color: '#FFF', fontSize: 14, marginBottom: 6 },
-  flyingCoin: { position: 'absolute', top: height * 0.42, alignSelf: 'center', zIndex: 100 },
+  speedButtonActive: { backgroundColor: '#FFD700', borderColor: '#FFD700' },
+  speedButtonText: { color: '#FFF', fontSize: 12, fontWeight: '600' },
+  flyingCoin: { position: 'absolute', top: height * 0.45, alignSelf: 'center', zIndex: 100 },
   coinIcon: {
     width: 100, height: 100, borderRadius: 50,
     backgroundColor: '#FFD700', alignItems: 'center', justifyContent: 'center',
@@ -549,11 +401,11 @@ const styles = StyleSheet.create({
   endButton: { alignItems: 'center', width: 70 },
   endButtonText: { color: '#FF4444', fontSize: 14, marginTop: 4, fontWeight: 'bold' },
   mainButton: {
-    alignItems: 'center', justifyContent: 'center', width: 140, height: 140, borderRadius: 70,
+    alignItems: 'center', justifyContent: 'center', width: 150, height: 150, borderRadius: 75,
     backgroundColor: '#FFD700',
   },
   mainButtonActive: { backgroundColor: '#4CAF50' },
-  mainButtonText: { color: '#000', fontSize: 16, fontWeight: 'bold', marginTop: 4 },
+  mainButtonText: { color: '#000', fontSize: 18, fontWeight: 'bold', marginTop: 4 },
   permissionContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   permissionTitle: { fontSize: 24, fontWeight: 'bold', color: '#FFF', marginTop: 24, marginBottom: 16 },
   permissionText: { fontSize: 16, color: '#AAA', textAlign: 'center', marginBottom: 32 },
