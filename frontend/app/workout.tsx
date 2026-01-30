@@ -250,8 +250,6 @@ export default function WorkoutScreen() {
 
   // End workout session
   const endWorkout = async () => {
-    setIsTracking(false);
-
     // Save session
     try {
       await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/sessions`, {
