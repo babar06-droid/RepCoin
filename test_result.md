@@ -131,6 +131,9 @@ backend:
       - working: true
         agent: "main"
         comment: "Successfully creates rep records with exercise_type and coins_earned"
+      - working: true
+        agent: "testing"
+        comment: "Verified both pushup and situp rep creation. Returns proper JSON with id, exercise_type, coins_earned, and timestamp fields. All data persisted correctly to MongoDB."
 
   - task: "GET /api/reps - Get all reps"
     implemented: true
@@ -143,6 +146,9 @@ backend:
       - working: true
         agent: "main"
         comment: "Returns list of all reps sorted by timestamp"
+      - working: true
+        agent: "testing"
+        comment: "Verified endpoint returns array of rep objects sorted by timestamp (newest first). All required fields present: id, exercise_type, coins_earned, timestamp."
 
   - task: "POST /api/sessions - Create workout session"
     implemented: true
@@ -155,6 +161,9 @@ backend:
       - working: true
         agent: "main"
         comment: "Successfully creates session records"
+      - working: true
+        agent: "testing"
+        comment: "Verified session creation with pushups, situps, and total_coins data. Returns proper JSON with id, pushups, situps, total_coins, and timestamp fields."
 
   - task: "GET /api/sessions - Get all sessions"
     implemented: true
@@ -167,6 +176,9 @@ backend:
       - working: true
         agent: "main"
         comment: "Returns list of sessions sorted by timestamp"
+      - working: true
+        agent: "testing"
+        comment: "Verified endpoint returns array of session objects sorted by timestamp (newest first). All required fields present: id, pushups, situps, total_coins, timestamp."
 
   - task: "GET /api/wallet - Get wallet summary"
     implemented: true
@@ -179,6 +191,9 @@ backend:
       - working: true
         agent: "main"
         comment: "Returns aggregated wallet data with total_coins, total_pushups, total_situps, sessions_count"
+      - working: true
+        agent: "testing"
+        comment: "Verified wallet aggregation logic. Correctly calculates total_coins from sum of all rep coins_earned, counts pushups/situps by exercise_type, and counts total sessions. All calculations verified accurate with test data."
 
 frontend:
   - task: "Home screen with branding and navigation"
