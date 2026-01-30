@@ -52,10 +52,6 @@ export default function WorkoutScreen() {
   const repScale = useRef(new Animated.Value(1)).current;
   const walletScale = useRef(new Animated.Value(1)).current;
 
-  // Pose detection simulation timer
-  const poseTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const frameCountRef = useRef(0);
-
   // Sound loaded state
   const [soundLoaded, setSoundLoaded] = useState(false);
   const chachingSoundRef = useRef<Audio.Sound | null>(null);
