@@ -116,6 +116,9 @@ backend:
       - working: true
         agent: "main"
         comment: "Returns Rep Coin API message"
+      - working: true
+        agent: "testing"
+        comment: "Verified endpoint returns correct message: 'Rep Coin API - Earn While You Burn!' with 200 status code"
 
   - task: "POST /api/reps - Create rep record"
     implemented: true
