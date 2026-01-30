@@ -7,16 +7,13 @@ import {
   Dimensions,
   Animated,
   Vibration,
-  Platform,
-  ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Audio } from 'expo-av';
-import * as tf from '@tensorflow/tfjs';
-import '@tensorflow/tfjs-react-native';
 
 const { width, height } = Dimensions.get('window');
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
@@ -31,19 +28,6 @@ interface CoinAnimation {
   scale: Animated.Value;
 }
 
-// Pose keypoint indices (based on MoveNet/PoseNet)
-const KEYPOINTS = {
-  NOSE: 0,
-  LEFT_SHOULDER: 5,
-  RIGHT_SHOULDER: 6,
-  LEFT_ELBOW: 7,
-  RIGHT_ELBOW: 8,
-  LEFT_WRIST: 9,
-  RIGHT_WRIST: 10,
-  LEFT_HIP: 11,
-  RIGHT_HIP: 12,
-};
-
 export default function WorkoutScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -57,49 +41,24 @@ export default function WorkoutScreen() {
   const [sessionStats, setSessionStats] = useState({ pushups: 0, situps: 0 });
   const [isTracking, setIsTracking] = useState(false);
   const [statusMessage, setStatusMessage] = useState('Press START');
-  const [tfReady, setTfReady] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [bodyPosition, setBodyPosition] = useState<'up' | 'down' | 'unknown'>('unknown');
+  const [isPressed, setIsPressed] = useState(false);
 
   const coinIdRef = useRef(0);
   const chachingSoundRef = useRef<Audio.Sound | null>(null);
   const repScale = useRef(new Animated.Value(1)).current;
   const walletScale = useRef(new Animated.Value(1)).current;
+  const pressScale = useRef(new Animated.Value(1)).current;
 
-  // Rep detection state
+  // Rep tracking
   const lastRepTimeRef = useRef(0);
-  const positionHistoryRef = useRef<number[]>([]);
-  const wasDownRef = useRef(false);
-  const frameCountRef = useRef(0);
-  const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Simulated pose tracking (since full TensorFlow pose detection requires native modules)
-  // We'll use a brightness/motion-based approach as a reliable fallback
-  const lastBrightnessRef = useRef<number | null>(null);
-  const brightnessHistoryRef = useRef<number[]>([]);
+  const pressStartTimeRef = useRef(0);
 
   useEffect(() => {
-    initializeTF();
     loadSound();
     return () => {
-      stopTracking();
       if (chachingSoundRef.current) chachingSoundRef.current.unloadAsync();
     };
   }, []);
-
-  const initializeTF = async () => {
-    try {
-      // Initialize TensorFlow.js
-      await tf.ready();
-      setTfReady(true);
-      setIsLoading(false);
-      console.log('TensorFlow.js ready');
-    } catch (error) {
-      console.log('TF init error:', error);
-      setIsLoading(false);
-      // Continue without TF - use fallback detection
-    }
-  };
 
   const loadSound = async () => {
     try {
@@ -130,7 +89,7 @@ export default function WorkoutScreen() {
         await chachingSoundRef.current.setPositionAsync(0);
         await chachingSoundRef.current.playAsync();
       }
-      Vibration.vibrate(250);
+      Vibration.vibrate(300);
     } catch (error) {}
   };
 
@@ -139,30 +98,30 @@ export default function WorkoutScreen() {
     const translateY = new Animated.Value(0);
     const translateX = new Animated.Value(0);
     const opacity = new Animated.Value(1);
-    const scale = new Animated.Value(2.5);
+    const scale = new Animated.Value(3);
 
     setCoinAnimations((prev) => [...prev, { id: coinId, translateY, translateX, opacity, scale }]);
 
     Animated.parallel([
-      Animated.timing(translateY, { toValue: -height * 0.38, duration: 450, useNativeDriver: true }),
-      Animated.timing(translateX, { toValue: width * 0.32, duration: 450, useNativeDriver: true }),
-      Animated.timing(scale, { toValue: 0.25, duration: 450, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: -height * 0.35, duration: 400, useNativeDriver: true }),
+      Animated.timing(translateX, { toValue: width * 0.3, duration: 400, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 0.2, duration: 400, useNativeDriver: true }),
       Animated.sequence([
-        Animated.delay(280),
-        Animated.timing(opacity, { toValue: 0, duration: 170, useNativeDriver: true }),
+        Animated.delay(250),
+        Animated.timing(opacity, { toValue: 0, duration: 150, useNativeDriver: true }),
       ]),
     ]).start(() => {
       setCoinAnimations((prev) => prev.filter((c) => c.id !== coinId));
       Animated.sequence([
-        Animated.timing(walletScale, { toValue: 2, duration: 50, useNativeDriver: true }),
-        Animated.timing(walletScale, { toValue: 1, duration: 50, useNativeDriver: true }),
+        Animated.timing(walletScale, { toValue: 2.2, duration: 40, useNativeDriver: true }),
+        Animated.timing(walletScale, { toValue: 1, duration: 40, useNativeDriver: true }),
       ]).start();
     });
   };
 
   const countRep = useCallback(() => {
     const now = Date.now();
-    if (now - lastRepTimeRef.current < 500) return; // Min 500ms between reps
+    if (now - lastRepTimeRef.current < 300) return;
     lastRepTimeRef.current = now;
 
     setRepCount((prev) => prev + 1);
@@ -174,15 +133,13 @@ export default function WorkoutScreen() {
     }));
 
     Animated.sequence([
-      Animated.timing(repScale, { toValue: 2, duration: 50, useNativeDriver: true }),
-      Animated.timing(repScale, { toValue: 1, duration: 50, useNativeDriver: true }),
+      Animated.timing(repScale, { toValue: 2.2, duration: 40, useNativeDriver: true }),
+      Animated.timing(repScale, { toValue: 1, duration: 40, useNativeDriver: true }),
     ]).start();
 
     playChaChing();
     animateCoin();
     saveRepToBackend();
-    setStatusMessage('💰 REP COUNTED!');
-    setTimeout(() => setStatusMessage('Keep going!'), 600);
   }, [exerciseType]);
 
   const saveRepToBackend = async () => {
@@ -195,71 +152,44 @@ export default function WorkoutScreen() {
     } catch (error) {}
   };
 
-  // Simulate pose detection based on timing and user feedback
-  // In a full implementation, this would analyze camera frames
-  const detectPose = useCallback(() => {
-    frameCountRef.current++;
+  // Press and release detection for reps
+  const handlePressIn = () => {
+    if (!isTracking) return;
+    setIsPressed(true);
+    pressStartTimeRef.current = Date.now();
+    setStatusMessage('⬇️ DOWN - Hold...');
     
-    // Simulate body position detection
-    // Real implementation would use TensorFlow pose detection on camera frames
-    // For now, we detect based on motion patterns
+    Animated.timing(pressScale, { toValue: 0.95, duration: 100, useNativeDriver: true }).start();
+  };
+
+  const handlePressOut = () => {
+    if (!isTracking || !isPressed) return;
+    setIsPressed(false);
     
-    const positions = positionHistoryRef.current;
+    const pressDuration = Date.now() - pressStartTimeRef.current;
     
-    // Generate simulated position based on typical exercise rhythm
-    // User should be doing actual reps - we detect the rhythm
-    const cyclePosition = Math.sin(frameCountRef.current * 0.15);
-    
-    // Add some noise to make it realistic
-    const noise = (Math.random() - 0.5) * 0.3;
-    const currentPosition = cyclePosition + noise;
-    
-    positions.push(currentPosition);
-    if (positions.length > 20) positions.shift();
-    
-    // Detect if we're in "down" or "up" position
-    const avgPosition = positions.slice(-5).reduce((a, b) => a + b, 0) / 5;
-    
-    if (avgPosition < -0.3) {
-      // Down position
-      if (bodyPosition !== 'down') {
-        setBodyPosition('down');
-        setStatusMessage('⬇️ DOWN');
-        wasDownRef.current = true;
-      }
-    } else if (avgPosition > 0.3 && wasDownRef.current) {
-      // Up position after being down = rep complete!
-      if (bodyPosition !== 'up') {
-        setBodyPosition('up');
-        countRep();
-        wasDownRef.current = false;
-      }
+    // Only count if held for at least 200ms (real rep)
+    if (pressDuration >= 200) {
+      setStatusMessage('⬆️ UP - REP!');
+      countRep();
+      setTimeout(() => setStatusMessage('Touch screen when going DOWN'), 500);
+    } else {
+      setStatusMessage('Hold longer for rep');
+      setTimeout(() => setStatusMessage('Touch screen when going DOWN'), 1000);
     }
-  }, [bodyPosition, countRep]);
+    
+    Animated.timing(pressScale, { toValue: 1, duration: 100, useNativeDriver: true }).start();
+  };
 
   const startTracking = () => {
     setIsTracking(true);
-    setStatusMessage('Tracking your movement...');
-    setBodyPosition('unknown');
-    positionHistoryRef.current = [];
-    wasDownRef.current = false;
-    frameCountRef.current = 0;
-
-    // Start detection loop
-    detectionIntervalRef.current = setInterval(() => {
-      detectPose();
-    }, 100); // 10 FPS detection rate
+    setStatusMessage('Touch screen when going DOWN');
   };
 
   const stopTracking = () => {
     setIsTracking(false);
     setStatusMessage('Press START');
-    setBodyPosition('unknown');
-    
-    if (detectionIntervalRef.current) {
-      clearInterval(detectionIntervalRef.current);
-      detectionIntervalRef.current = null;
-    }
+    setIsPressed(false);
   };
 
   const toggleTracking = () => {
@@ -285,18 +215,9 @@ export default function WorkoutScreen() {
     router.push('/wallet');
   };
 
-  const getPositionColor = () => {
-    switch (bodyPosition) {
-      case 'down': return '#FF6B6B';
-      case 'up': return '#4CAF50';
-      default: return '#FFD700';
-    }
-  };
-
   if (!permission) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color="#FFD700" />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
@@ -307,10 +228,8 @@ export default function WorkoutScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.permissionContainer}>
           <Ionicons name="camera-outline" size={80} color="#FFD700" />
-          <Text style={styles.permissionTitle}>Camera Access Required</Text>
-          <Text style={styles.permissionText}>
-            Rep Coin needs camera access to track your exercises using AI pose detection.
-          </Text>
+          <Text style={styles.permissionTitle}>Camera Access</Text>
+          <Text style={styles.permissionText}>Enable camera to see yourself during workout.</Text>
           <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
             <Text style={styles.permissionButtonText}>Enable Camera</Text>
           </TouchableOpacity>
@@ -322,28 +241,29 @@ export default function WorkoutScreen() {
     );
   }
 
-  if (isLoading) {
-    return (
-      <View style={[styles.container, styles.loadingContainer, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color="#FFD700" />
-        <Text style={styles.loadingText}>Loading AI...</Text>
-        <Text style={styles.loadingSubtext}>Preparing pose detection</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <CameraView style={styles.camera} facing={facing}>
-        {/* Pose overlay - visual guide */}
+        {/* Touch area for rep detection */}
         {isTracking && (
-          <View style={styles.poseOverlay}>
-            <View style={[styles.bodyIndicator, { borderColor: getPositionColor() }]}>
-              <Text style={[styles.bodyIndicatorText, { color: getPositionColor() }]}>
-                {bodyPosition === 'down' ? '⬇️' : bodyPosition === 'up' ? '⬆️' : '👤'}
+          <Pressable 
+            style={styles.touchArea}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+          >
+            <Animated.View style={[styles.touchIndicator, { 
+              transform: [{ scale: pressScale }],
+              backgroundColor: isPressed ? 'rgba(255, 107, 107, 0.4)' : 'rgba(76, 175, 80, 0.2)',
+              borderColor: isPressed ? '#FF6B6B' : '#4CAF50',
+            }]}>
+              <Text style={styles.touchText}>
+                {isPressed ? '⬇️ HOLD' : '👆 TOUCH HERE'}
               </Text>
-            </View>
-          </View>
+              <Text style={styles.touchSubtext}>
+                {isPressed ? 'Release when coming UP' : 'Press when going DOWN'}
+              </Text>
+            </Animated.View>
+          </Pressable>
         )}
 
         {/* Header */}
@@ -358,12 +278,6 @@ export default function WorkoutScreen() {
           <TouchableOpacity style={styles.headerButton} onPress={toggleCameraFacing}>
             <Ionicons name="camera-reverse" size={24} color="#FFF" />
           </TouchableOpacity>
-        </View>
-
-        {/* AI Badge */}
-        <View style={styles.aiBadge}>
-          <Ionicons name="hardware-chip" size={16} color="#4CAF50" />
-          <Text style={styles.aiBadgeText}>AI Tracking {tfReady ? 'Ready' : 'Active'}</Text>
         </View>
 
         {/* Exercise selector */}
@@ -386,12 +300,12 @@ export default function WorkoutScreen() {
 
         {/* Rep counter */}
         <View style={styles.repDisplay}>
-          <Animated.View style={[styles.repCounter, { transform: [{ scale: repScale }], borderColor: getPositionColor() }]}>
-            <Text style={[styles.repNumber, { color: getPositionColor() }]}>{repCount}</Text>
+          <Animated.View style={[styles.repCounter, { transform: [{ scale: repScale }] }]}>
+            <Text style={styles.repNumber}>{repCount}</Text>
             <Text style={styles.repLabel}>REPS</Text>
           </Animated.View>
           
-          <View style={[styles.statusBadge, { backgroundColor: getPositionColor() }]}>
+          <View style={[styles.statusBadge, isPressed && styles.statusBadgeDown]}>
             <Text style={styles.statusText}>{statusMessage}</Text>
           </View>
         </View>
@@ -411,14 +325,6 @@ export default function WorkoutScreen() {
           </Animated.View>
         ))}
 
-        {/* Instructions */}
-        {isTracking && (
-          <View style={styles.instructionBox}>
-            <Text style={styles.instructionTitle}>📹 AI is watching your form</Text>
-            <Text style={styles.instructionText}>Do complete reps - down then up</Text>
-          </View>
-        )}
-
         {/* Bottom controls */}
         <View style={[styles.bottomControls, { paddingBottom: insets.bottom + 20 }]}>
           <TouchableOpacity style={styles.endButton} onPress={endWorkout}>
@@ -430,7 +336,7 @@ export default function WorkoutScreen() {
             style={[styles.mainButton, isTracking && styles.mainButtonActive]}
             onPress={toggleTracking}
           >
-            <Ionicons name={isTracking ? 'pause' : 'fitness'} size={60} color="#000" />
+            <Ionicons name={isTracking ? 'pause' : 'fitness'} size={55} color="#000" />
             <Text style={styles.mainButtonText}>{isTracking ? 'PAUSE' : 'START'}</Text>
           </TouchableOpacity>
 
@@ -443,28 +349,34 @@ export default function WorkoutScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0a0a0a' },
-  loadingContainer: { alignItems: 'center', justifyContent: 'center' },
   camera: { flex: 1 },
-  loadingText: { color: '#FFF', fontSize: 18, marginTop: 16 },
-  loadingSubtext: { color: '#888', fontSize: 14, marginTop: 8 },
-  poseOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 5,
+  loadingText: { color: '#FFF', fontSize: 18, textAlign: 'center', marginTop: 100 },
+  touchArea: {
+    position: 'absolute',
+    top: height * 0.35,
+    left: 20,
+    right: 20,
+    height: height * 0.25,
+    zIndex: 20,
   },
-  bodyIndicator: {
-    width: 120,
-    height: 160,
+  touchIndicator: {
+    flex: 1,
+    borderRadius: 30,
     borderWidth: 4,
-    borderRadius: 20,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.3)',
   },
-  bodyIndicatorText: {
-    fontSize: 50,
+  touchText: {
+    color: '#FFF',
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  touchSubtext: {
+    color: '#FFF',
+    fontSize: 14,
+    marginTop: 8,
+    opacity: 0.8,
   },
   header: {
     position: 'absolute', top: 0, left: 0, right: 0,
@@ -481,16 +393,9 @@ const styles = StyleSheet.create({
     borderRadius: 40, borderWidth: 4, borderColor: '#FFD700',
   },
   walletCoins: { color: '#FFD700', fontSize: 32, fontWeight: 'bold', marginLeft: 12 },
-  aiBadge: {
-    position: 'absolute', top: 75, alignSelf: 'center',
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.8)', paddingHorizontal: 16, paddingVertical: 8,
-    borderRadius: 20, borderWidth: 1, borderColor: '#4CAF50',
-  },
-  aiBadgeText: { color: '#4CAF50', fontSize: 12, fontWeight: '600', marginLeft: 6 },
   exerciseSelector: {
-    position: 'absolute', top: 115, left: 16, right: 16,
-    flexDirection: 'row', justifyContent: 'center', gap: 12,
+    position: 'absolute', top: 100, left: 16, right: 16,
+    flexDirection: 'row', justifyContent: 'center', gap: 12, zIndex: 10,
   },
   exerciseButton: {
     flexDirection: 'row', alignItems: 'center',
@@ -500,26 +405,23 @@ const styles = StyleSheet.create({
   exerciseButtonActive: { backgroundColor: '#FFD700', borderColor: '#FFD700' },
   exerciseButtonText: { color: '#FFF', marginLeft: 8, fontWeight: '700', fontSize: 16 },
   exerciseButtonTextActive: { color: '#000' },
-  repDisplay: { position: 'absolute', top: height * 0.18, alignSelf: 'center', alignItems: 'center' },
+  repDisplay: { position: 'absolute', top: height * 0.12, alignSelf: 'center', alignItems: 'center', zIndex: 5 },
   repCounter: {
-    width: 180, height: 180, borderRadius: 90,
-    backgroundColor: 'rgba(0,0,0,0.9)', borderWidth: 8,
+    width: 160, height: 160, borderRadius: 80,
+    backgroundColor: 'rgba(0,0,0,0.9)', borderWidth: 6, borderColor: '#FFD700',
     alignItems: 'center', justifyContent: 'center',
   },
-  repNumber: { fontSize: 90, fontWeight: 'bold' },
-  repLabel: { fontSize: 20, color: '#888', marginTop: -10, fontWeight: '700' },
+  repNumber: { fontSize: 80, fontWeight: 'bold', color: '#FFD700' },
+  repLabel: { fontSize: 18, color: '#888', marginTop: -8, fontWeight: '700' },
   statusBadge: {
-    marginTop: 20, paddingHorizontal: 30, paddingVertical: 14, borderRadius: 30,
+    marginTop: 16, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 25,
+    backgroundColor: '#4CAF50',
   },
-  statusText: { color: '#000', fontSize: 18, fontWeight: '900' },
-  instructionBox: {
-    position: 'absolute', top: height * 0.52, alignSelf: 'center',
-    backgroundColor: 'rgba(0,0,0,0.85)', padding: 16, borderRadius: 16,
-    borderWidth: 1, borderColor: '#333',
+  statusBadgeDown: {
+    backgroundColor: '#FF6B6B',
   },
-  instructionTitle: { color: '#FFD700', fontSize: 14, fontWeight: 'bold', marginBottom: 4 },
-  instructionText: { color: '#FFF', fontSize: 13 },
-  flyingCoin: { position: 'absolute', top: height * 0.45, alignSelf: 'center', zIndex: 100 },
+  statusText: { color: '#FFF', fontSize: 14, fontWeight: '800' },
+  flyingCoin: { position: 'absolute', top: height * 0.4, alignSelf: 'center', zIndex: 100 },
   coinIcon: {
     width: 100, height: 100, borderRadius: 50,
     backgroundColor: '#FFD700', alignItems: 'center', justifyContent: 'center',
@@ -534,14 +436,14 @@ const styles = StyleSheet.create({
   endButton: { alignItems: 'center', width: 70 },
   endButtonText: { color: '#FF4444', fontSize: 14, marginTop: 4, fontWeight: 'bold' },
   mainButton: {
-    alignItems: 'center', justifyContent: 'center', width: 150, height: 150, borderRadius: 75,
+    alignItems: 'center', justifyContent: 'center', width: 140, height: 140, borderRadius: 70,
     backgroundColor: '#FFD700',
   },
   mainButtonActive: { backgroundColor: '#4CAF50' },
-  mainButtonText: { color: '#000', fontSize: 18, fontWeight: 'bold', marginTop: 4 },
+  mainButtonText: { color: '#000', fontSize: 16, fontWeight: 'bold', marginTop: 4 },
   permissionContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   permissionTitle: { fontSize: 24, fontWeight: 'bold', color: '#FFF', marginTop: 24, marginBottom: 16 },
-  permissionText: { fontSize: 16, color: '#AAA', textAlign: 'center', marginBottom: 32, lineHeight: 24 },
+  permissionText: { fontSize: 16, color: '#AAA', textAlign: 'center', marginBottom: 32 },
   permissionButton: { backgroundColor: '#FFD700', paddingHorizontal: 32, paddingVertical: 16, borderRadius: 30 },
   permissionButtonText: { color: '#000', fontSize: 16, fontWeight: 'bold' },
   backButton: { marginTop: 16, padding: 12 },
