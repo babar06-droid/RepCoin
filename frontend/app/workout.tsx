@@ -18,6 +18,10 @@ import { Audio } from 'expo-av';
 const { width, height } = Dimensions.get('window');
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
+// State machine thresholds for rep counting
+const DOWN_THRESHOLD = 0.55;  // shoulder_y above this = DOWN position
+const UP_THRESHOLD = 0.45;    // shoulder_y below this = UP position
+
 type ExerciseType = 'pushup' | 'situp';
 
 interface CoinAnimation {
