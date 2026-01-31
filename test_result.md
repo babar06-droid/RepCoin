@@ -195,6 +195,21 @@ backend:
         agent: "testing"
         comment: "Verified wallet aggregation logic. Correctly calculates total_coins from sum of all rep coins_earned, counts pushups/situps by exercise_type, and counts total sessions. All calculations verified accurate with test data."
 
+  - task: "POST /api/analyze-pose - AI pose analysis endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "CRITICAL FIX: Fixed the AI pose analysis endpoint. Root cause was using wrong parameter 'image_contents' instead of 'file_contents' for the emergentintegrations library. Implemented state machine logic with shoulder_y threshold-based rep counting: UP state (shoulder_y < 0.45) and DOWN state (shoulder_y > 0.55). Rep only counts on DOWN→UP transition."
+      - working: true
+        agent: "testing"
+        comment: "Verified AI pose analysis endpoint is working correctly. Endpoint accepts base64 images and returns proper JSON with position, shoulder_y (0.0-1.0), confidence, message, and raw_response fields. Error handling works correctly for invalid/empty images. Backend logs show many successful 200 OK responses from real usage. The fix using 'file_contents' parameter resolved the integration issue with emergentintegrations library."
+
 frontend:
   - task: "Home screen with branding and navigation"
     implemented: true
