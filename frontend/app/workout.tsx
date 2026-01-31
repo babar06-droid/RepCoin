@@ -200,27 +200,37 @@ export default function WorkoutScreen() {
       }
 
       const result = await response.json();
-      const detectedPosition = result.position;
+      const shoulderY = result.shoulder_y || 0.5;
+      const currentState = currentStateRef.current;
       
-      console.log('AI detected position:', detectedPosition, 'hasBeenDown:', hasBeenDownRef.current);
+      console.log(`AI: shoulder_y=${shoulderY.toFixed(2)}, state=${currentState}, raw=${result.raw_response?.substring(0, 50)}`);
       
-      setCurrentPosition(detectedPosition);
-      setAiStatus(`Detected: ${detectedPosition.toUpperCase()}`);
+      setCurrentPosition(result.position);
+      setAiStatus(`Y: ${shoulderY.toFixed(2)} | ${result.position.toUpperCase()}`);
 
-      // Rep counting logic - ONLY count on confirmed DOWN -> UP sequence
-      if (detectedPosition === 'down') {
-        hasBeenDownRef.current = true;
-        setStatusMessage('⬇️ DOWN - Now go UP!');
-      } else if (detectedPosition === 'up') {
-        if (hasBeenDownRef.current) {
-          // CONFIRMED REP: Was down, now up
-          hasBeenDownRef.current = false;
-          triggerRepCount();
+      // STATE MACHINE LOGIC (matching your pseudocode):
+      // if(state === "up" && shoulderY > DOWN_THRESHOLD) { state = "down" }
+      // if(state === "down" && shoulderY < UP_THRESHOLD) { count++; state = "up" }
+      
+      if (currentState === 'up' && shoulderY > DOWN_THRESHOLD) {
+        // Transition: UP -> DOWN
+        currentStateRef.current = 'down';
+        setStatusMessage('⬇️ DOWN - Now push UP!');
+        console.log('State change: UP -> DOWN');
+      } 
+      else if (currentState === 'down' && shoulderY < UP_THRESHOLD) {
+        // Transition: DOWN -> UP = COUNT REP!
+        currentStateRef.current = 'up';
+        console.log('State change: DOWN -> UP = REP COUNTED!');
+        triggerRepCount();
+      }
+      else {
+        // No state change - waiting for movement
+        if (currentState === 'up') {
+          setStatusMessage(`⬆️ UP (${shoulderY.toFixed(2)}) - Go DOWN`);
         } else {
-          setStatusMessage('⬆️ UP - Go DOWN first');
+          setStatusMessage(`⬇️ DOWN (${shoulderY.toFixed(2)}) - Push UP`);
         }
-      } else {
-        setStatusMessage('📷 Keep moving...');
       }
 
     } catch (error) {
