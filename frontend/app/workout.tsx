@@ -413,10 +413,10 @@ export default function WorkoutScreen() {
         {isTracking && (
           <View style={styles.instructionBox}>
             <Text style={styles.instructionTitle}>🤖 AI Rep Counter</Text>
-            <Text style={styles.instructionText}>1. Get in camera view</Text>
-            <Text style={styles.instructionText}>2. Go DOWN (AI detects)</Text>
-            <Text style={styles.instructionText}>3. Go UP (Rep counts!)</Text>
-            <Text style={styles.instructionNote}>Only counts complete DOWN→UP reps</Text>
+            <Text style={styles.instructionText}>1. Start in UP position (arms extended)</Text>
+            <Text style={styles.instructionText}>2. Go DOWN (lower your body)</Text>
+            <Text style={styles.instructionText}>3. Push UP to count rep!</Text>
+            <Text style={styles.instructionNote}>Rep counts on: DOWN → UP transition</Text>
           </View>
         )}
 
