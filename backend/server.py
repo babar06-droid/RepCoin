@@ -99,73 +99,107 @@ async def root():
 async def analyze_pose(request: PoseAnalysisRequest):
     try:
         if not EMERGENT_LLM_KEY:
+            logging.error("EMERGENT_LLM_KEY not configured")
             return PoseAnalysisResponse(
                 position="unknown",
+                shoulder_y=0.5,
                 confidence="low",
-                message="AI key not configured"
+                message="AI key not configured",
+                raw_response=""
             )
 
         # Create chat instance for vision analysis
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=f"pose-{uuid.uuid4()}",
-            system_message="""You are a fitness pose analyzer. Your ONLY job is to determine if a person is in the UP or DOWN position of an exercise.
+            system_message="""You are a fitness pose analyzer. Analyze the image and estimate the vertical position of the person's shoulders.
 
-For PUSH-UPS:
-- UP position: Arms extended, body high off the ground
-- DOWN position: Arms bent, chest close to ground
+Your job:
+1. Find the person's shoulders in the image
+2. Estimate how high/low their shoulders are as a percentage (0.0 = top of frame, 1.0 = bottom of frame)
+3. Determine if they are in UP position (shoulders high, arms extended) or DOWN position (shoulders low, arms bent)
 
-For SIT-UPS:
-- UP position: Torso upright, sitting up
-- DOWN position: Back flat on ground, lying down
+RESPOND IN THIS EXACT FORMAT:
+shoulder_y: 0.XX
+position: up/down/unknown
 
-Respond with ONLY one word: "up" or "down" or "unknown" if you can't determine the position."""
+Example responses:
+shoulder_y: 0.35
+position: up
+
+shoulder_y: 0.72
+position: down"""
         ).with_model("gemini", "gemini-2.0-flash")
 
-        # Clean base64 string
+        # Clean base64 string - remove data URI prefix if present
         image_data = request.image_base64
         if ',' in image_data:
             image_data = image_data.split(',')[1]
 
-        # Create image content
+        # Create image content using correct parameter
         image_content = ImageContent(image_base64=image_data)
 
-        # Create message
-        prompt = f"What position is this person in for a {request.exercise_type}? Reply with only: up, down, or unknown"
+        # Create message with file_contents (not image_contents!)
+        prompt = f"Analyze this {request.exercise_type} position. Where are the shoulders? Give shoulder_y (0.0-1.0) and position (up/down/unknown)."
         
         user_message = UserMessage(
             text=prompt,
-            image_contents=[image_content]
+            file_contents=[image_content]  # CORRECT: use file_contents, not image_contents
         )
 
         # Get response
         response = await chat.send_message(user_message)
+        logging.info(f"Gemini raw response: {response}")
         
-        # Parse response
+        # Parse response - look for shoulder_y and position
         response_lower = response.strip().lower()
         
-        if "up" in response_lower:
+        # Extract shoulder_y value
+        shoulder_y = 0.5  # default middle
+        if "shoulder_y:" in response_lower:
+            try:
+                y_part = response_lower.split("shoulder_y:")[1].split("\n")[0].strip()
+                shoulder_y = float(y_part)
+                # Clamp to valid range
+                shoulder_y = max(0.0, min(1.0, shoulder_y))
+            except:
+                pass
+        
+        # Determine position from response
+        if "position: up" in response_lower or "position:up" in response_lower:
             position = "up"
             confidence = "high"
-        elif "down" in response_lower:
+        elif "position: down" in response_lower or "position:down" in response_lower:
             position = "down"
             confidence = "high"
+        elif "up" in response_lower and "down" not in response_lower:
+            position = "up"
+            confidence = "medium"
+        elif "down" in response_lower and "up" not in response_lower:
+            position = "down"
+            confidence = "medium"
         else:
             position = "unknown"
             confidence = "low"
 
+        logging.info(f"Parsed: position={position}, shoulder_y={shoulder_y}, confidence={confidence}")
+        
         return PoseAnalysisResponse(
             position=position,
+            shoulder_y=shoulder_y,
             confidence=confidence,
-            message=f"Detected {position} position"
+            message=f"Detected {position} position at y={shoulder_y:.2f}",
+            raw_response=response[:200]  # First 200 chars for debugging
         )
 
     except Exception as e:
         logging.error(f"Pose analysis error: {e}")
         return PoseAnalysisResponse(
             position="unknown",
+            shoulder_y=0.5,
             confidence="low",
-            message=str(e)
+            message=str(e),
+            raw_response=""
         )
 
 
