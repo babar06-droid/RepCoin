@@ -82,8 +82,10 @@ class PoseAnalysisRequest(BaseModel):
 
 class PoseAnalysisResponse(BaseModel):
     position: str  # "up", "down", or "unknown"
+    shoulder_y: float  # 0.0 (top) to 1.0 (bottom)
     confidence: str  # "high", "medium", "low"
     message: str
+    raw_response: str = ""  # For debugging
 
 
 # Add your routes to the router instead of directly to app
