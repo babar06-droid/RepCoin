@@ -55,8 +55,9 @@ export default function WorkoutScreen() {
   const repScale = useRef(new Animated.Value(1)).current;
   const walletScale = useRef(new Animated.Value(1)).current;
   
-  // Rep detection state - ONLY count on confirmed DOWN -> UP
-  const hasBeenDownRef = useRef(false);
+  // State machine for rep detection
+  // state: "up" or "down" - based on shoulder position
+  const currentStateRef = useRef<'up' | 'down'>('up'); // Start in UP position
   const lastRepTimeRef = useRef(0);
   const analysisLoopRef = useRef<NodeJS.Timeout | null>(null);
   const isTrackingRef = useRef(false);
