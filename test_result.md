@@ -250,3 +250,5 @@ agent_communication:
     message: "Initial implementation of Rep Coin app complete. Backend APIs tested with curl and working. Frontend screens implemented with home, workout, and wallet pages. Ready for backend testing agent to verify all endpoints."
   - agent: "testing"
     message: "Comprehensive backend API testing completed. All 6 endpoints tested successfully: GET /api/ (root), POST/GET /api/reps (rep tracking), POST/GET /api/sessions (workout sessions), GET /api/wallet (aggregated data). MongoDB integration working correctly. Wallet calculations verified accurate. All backend functionality is working as expected."
+  - agent: "main"
+    message: "CRITICAL FIX: Fixed the AI pose analysis endpoint. Root cause was using wrong parameter 'image_contents' instead of 'file_contents' for the emergentintegrations library. Implemented state machine logic with shoulder_y threshold-based rep counting: UP state (shoulder_y < 0.45) and DOWN state (shoulder_y > 0.55). Rep only counts on DOWN→UP transition. Please test the /api/analyze-pose endpoint with an actual image."
