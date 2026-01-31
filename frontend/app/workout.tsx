@@ -246,16 +246,16 @@ export default function WorkoutScreen() {
     console.log('Starting tracking...');
     setIsTracking(true);
     isTrackingRef.current = true;
-    hasBeenDownRef.current = false;
-    setStatusMessage('📷 Position yourself in view');
+    currentStateRef.current = 'up';  // Start in UP position
+    setStatusMessage('📷 Get in position - Start in UP');
     setAiStatus('Starting...');
     
-    // Start analysis loop - analyze every 2 seconds
+    // Start analysis loop - analyze every 1.5 seconds
     const runAnalysis = async () => {
       if (isTrackingRef.current) {
         await captureAndAnalyze();
         // Schedule next analysis
-        analysisLoopRef.current = setTimeout(runAnalysis, 2000);
+        analysisLoopRef.current = setTimeout(runAnalysis, 1500);
       }
     };
     
@@ -270,7 +270,7 @@ export default function WorkoutScreen() {
     setStatusMessage('Press START');
     setCurrentPosition('unknown');
     setAiStatus('Ready');
-    hasBeenDownRef.current = false;
+    currentStateRef.current = 'up';  // Reset state
     
     if (analysisLoopRef.current) {
       clearTimeout(analysisLoopRef.current);
