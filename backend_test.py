@@ -197,6 +197,93 @@ def test_get_sessions():
         print(f"❌ Get sessions error: {e}")
         return False
 
+def create_test_image_base64():
+    """Create a simple test image as base64 for pose analysis testing"""
+    # Create a minimal 1x1 pixel PNG image in base64
+    # This is a valid PNG but minimal for testing purposes
+    png_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\tpHYs\x00\x00\x0b\x13\x00\x00\x0b\x13\x01\x00\x9a\x9c\x18\x00\x00\x00\nIDATx\x9cc```\x00\x00\x00\x04\x00\x01\xdd\x8d\xb4\x1c\x00\x00\x00\x00IEND\xaeB`\x82'
+    return base64.b64encode(png_data).decode('utf-8')
+
+def test_pose_analysis():
+    """Test POST /api/analyze-pose - AI pose analysis endpoint"""
+    print("\n=== Testing AI Pose Analysis Endpoint ===")
+    
+    # Test 1: Valid image
+    print("\n--- Test 1: Valid base64 image ---")
+    try:
+        test_image = create_test_image_base64()
+        pose_data = {
+            "image_base64": test_image,
+            "exercise_type": "pushup"
+        }
+        
+        response = requests.post(f"{BASE_API_URL}/analyze-pose", json=pose_data)
+        print(f"Status Code: {response.status_code}")
+        print(f"Response: {response.json()}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            required_fields = ["position", "shoulder_y", "confidence", "message", "raw_response"]
+            
+            if all(field in data for field in required_fields):
+                # Verify shoulder_y is a float between 0.0 and 1.0
+                shoulder_y = data["shoulder_y"]
+                if isinstance(shoulder_y, (int, float)) and 0.0 <= shoulder_y <= 1.0:
+                    # Verify position is valid
+                    if data["position"] in ["up", "down", "unknown"]:
+                        # Verify confidence is valid
+                        if data["confidence"] in ["high", "medium", "low"]:
+                            print("✅ Pose analysis with valid image working correctly")
+                            valid_image_success = True
+                        else:
+                            print(f"❌ Invalid confidence value: {data['confidence']}")
+                            valid_image_success = False
+                    else:
+                        print(f"❌ Invalid position value: {data['position']}")
+                        valid_image_success = False
+                else:
+                    print(f"❌ Invalid shoulder_y value: {shoulder_y} (should be float 0.0-1.0)")
+                    valid_image_success = False
+            else:
+                print("❌ Missing required fields in pose analysis response")
+                valid_image_success = False
+        else:
+            print("❌ Pose analysis with valid image failed")
+            valid_image_success = False
+    except Exception as e:
+        print(f"❌ Pose analysis with valid image error: {e}")
+        valid_image_success = False
+    
+    # Test 2: No image provided (error handling)
+    print("\n--- Test 2: No image provided (error handling) ---")
+    try:
+        empty_data = {
+            "image_base64": "",
+            "exercise_type": "pushup"
+        }
+        
+        response = requests.post(f"{BASE_API_URL}/analyze-pose", json=empty_data)
+        print(f"Status Code: {response.status_code}")
+        print(f"Response: {response.json()}")
+        
+        # Should still return 200 but with error handling
+        if response.status_code == 200:
+            data = response.json()
+            if "position" in data and "shoulder_y" in data:
+                print("✅ Pose analysis error handling working correctly")
+                error_handling_success = True
+            else:
+                print("❌ Pose analysis error handling missing required fields")
+                error_handling_success = False
+        else:
+            print("❌ Pose analysis error handling failed")
+            error_handling_success = False
+    except Exception as e:
+        print(f"❌ Pose analysis error handling error: {e}")
+        error_handling_success = False
+    
+    return valid_image_success and error_handling_success
+
 def test_get_wallet():
     """Test GET /api/wallet - Get wallet summary"""
     print("\n=== Testing Get Wallet Endpoint ===")
