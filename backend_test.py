@@ -327,7 +327,8 @@ def run_all_tests():
         "get_reps": test_get_reps(),
         "create_session": test_create_session(),
         "get_sessions": test_get_sessions(),
-        "get_wallet": test_get_wallet()
+        "get_wallet": test_get_wallet(),
+        "pose_analysis": test_pose_analysis()  # NEW: AI pose analysis test
     }
     
     print("\n" + "=" * 50)
