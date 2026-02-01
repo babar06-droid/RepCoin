@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import * as Speech from 'expo-speech';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 
 const { width, height } = Dimensions.get('window');
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
