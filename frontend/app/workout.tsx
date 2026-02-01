@@ -75,6 +75,7 @@ export default function WorkoutScreen() {
     loadSound();
     return () => {
       if (chachingSoundRef.current) chachingSoundRef.current.unloadAsync();
+      if (autoTimerRef.current) clearInterval(autoTimerRef.current);
       Speech.stop();
     };
   }, []);
