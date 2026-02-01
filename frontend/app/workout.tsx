@@ -203,36 +203,46 @@ export default function WorkoutScreen() {
       }
 
       const result = await response.json();
-      const shoulderY = result.shoulder_y || 0.5;
+      const rawShoulderY = result.shoulder_y || 0.5;
+      
+      // Add to history for smoothing
+      shoulderYHistoryRef.current.push(rawShoulderY);
+      if (shoulderYHistoryRef.current.length > 5) {
+        shoulderYHistoryRef.current.shift(); // Keep only last 5
+      }
+      
+      // Calculate smoothed average
+      const smoothedY = shoulderYHistoryRef.current.reduce((a, b) => a + b, 0) / shoulderYHistoryRef.current.length;
+      
       const currentState = currentStateRef.current;
       
-      console.log(`AI: shoulder_y=${shoulderY.toFixed(2)}, state=${currentState}, raw=${result.raw_response?.substring(0, 50)}`);
+      console.log(`AI: raw=${rawShoulderY.toFixed(2)}, smoothed=${smoothedY.toFixed(2)}, state=${currentState}, history=${shoulderYHistoryRef.current.length}`);
       
       setCurrentPosition(result.position);
-      setAiStatus(`Y: ${shoulderY.toFixed(2)} | ${result.position.toUpperCase()}`);
+      setAiStatus(`Y: ${smoothedY.toFixed(2)} | ${currentState.toUpperCase()}`);
 
-      // STATE MACHINE LOGIC (matching your pseudocode):
-      // if(state === "up" && shoulderY > DOWN_THRESHOLD) { state = "down" }
-      // if(state === "down" && shoulderY < UP_THRESHOLD) { count++; state = "up" }
+      // STATE MACHINE LOGIC with smoothed values:
+      // if(state === "up" && smoothedY > DOWN_THRESHOLD) { state = "down" }
+      // if(state === "down" && smoothedY < UP_THRESHOLD) { count++; state = "up" }
       
-      if (currentState === 'up' && shoulderY > DOWN_THRESHOLD) {
+      if (currentState === 'up' && smoothedY > DOWN_THRESHOLD) {
         // Transition: UP -> DOWN
         currentStateRef.current = 'down';
-        setStatusMessage('⬇️ DOWN - Now push UP!');
-        console.log('State change: UP -> DOWN');
+        setStatusMessage(`⬇️ DOWN (${smoothedY.toFixed(2)}) - Push UP!`);
+        console.log(`State change: UP -> DOWN at smoothedY=${smoothedY.toFixed(2)}`);
       } 
-      else if (currentState === 'down' && shoulderY < UP_THRESHOLD) {
+      else if (currentState === 'down' && smoothedY < UP_THRESHOLD) {
         // Transition: DOWN -> UP = COUNT REP!
         currentStateRef.current = 'up';
-        console.log('State change: DOWN -> UP = REP COUNTED!');
+        console.log(`State change: DOWN -> UP at smoothedY=${smoothedY.toFixed(2)} = REP COUNTED!`);
         triggerRepCount();
       }
       else {
         // No state change - waiting for movement
         if (currentState === 'up') {
-          setStatusMessage(`⬆️ UP (${shoulderY.toFixed(2)}) - Go DOWN`);
+          setStatusMessage(`⬆️ UP (${smoothedY.toFixed(2)}) - Go DOWN`);
         } else {
-          setStatusMessage(`⬇️ DOWN (${shoulderY.toFixed(2)}) - Push UP`);
+          setStatusMessage(`⬇️ DOWN (${smoothedY.toFixed(2)}) - Push UP`);
         }
       }
 
