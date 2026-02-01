@@ -506,12 +506,22 @@ export default function WorkoutScreen() {
 
       {/* Main Counter Display */}
       <View style={styles.counterContainer}>
-        <Animated.View style={[styles.counterCircle, { transform: [{ scale: repScale }] }]}>
-          <Text style={styles.counterNumber}>{getDisplayCount()}</Text>
-          <Text style={styles.counterLabel}>
-            {countDirection === 'up' ? `of ${targetReps}` : 'remaining'}
-          </Text>
-        </Animated.View>
+        {/* Countdown overlay */}
+        {countdown !== null && (
+          <Animated.View style={[styles.countdownOverlay, { transform: [{ scale: countdownScale }] }]}>
+            <Text style={styles.countdownNumber}>{countdown}</Text>
+            <Text style={styles.countdownLabel}>GET READY!</Text>
+          </Animated.View>
+        )}
+        
+        {countdown === null && (
+          <Animated.View style={[styles.counterCircle, { transform: [{ scale: repScale }] }]}>
+            <Text style={styles.counterNumber}>{getDisplayCount()}</Text>
+            <Text style={styles.counterLabel}>
+              {countDirection === 'up' ? `of ${targetReps}` : 'remaining'}
+            </Text>
+          </Animated.View>
+        )}
       </View>
 
       {/* Completion Message */}
