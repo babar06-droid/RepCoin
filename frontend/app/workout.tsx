@@ -234,12 +234,14 @@ export default function WorkoutScreen() {
     // Check if workout is complete
     if (countDirection === 'up' && newRep >= target) {
       setIsCompleted(true);
+      stopAutoCounter();
       speakMotivation("Workout complete! Great job!");
       playCoinSound();
       animateCoin();
       setCoinsEarned((prev) => prev + 2); // Bonus coins for completion
     } else if (countDirection === 'down' && newRep <= 0) {
       setIsCompleted(true);
+      stopAutoCounter();
       speakMotivation("Workout complete! Great job!");
       playCoinSound();
       animateCoin();
