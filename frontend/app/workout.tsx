@@ -236,6 +236,91 @@ export default function WorkoutScreen() {
 
   }, [currentRep, countDirection, targetReps, exerciseType, isCompleted]);
 
+  // Start auto counting with interval - must be after handleRepCount
+  const startAutoCounter = useCallback(() => {
+    const intervalMs = (parseFloat(autoInterval) || 2) * 1000;
+    autoTimerRef.current = setInterval(() => {
+      // Use functional update to avoid stale state
+      setCurrentRep((prevRep) => {
+        const target = parseInt(targetReps) || 0;
+        let newRep: number;
+        let totalRepsCompleted: number;
+
+        if (countDirection === 'up') {
+          newRep = prevRep + 1;
+          totalRepsCompleted = newRep;
+        } else {
+          newRep = prevRep - 1;
+          totalRepsCompleted = target - newRep;
+        }
+
+        // Animations and sounds
+        animateButton();
+        animateRepCounter();
+        Vibration.vibrate(50);
+
+        // Update session stats
+        setSessionStats((prev) => ({
+          ...prev,
+          [exerciseType === 'pushup' ? 'pushups' : 'situps']: 
+            prev[exerciseType === 'pushup' ? 'pushups' : 'situps'] + 1,
+        }));
+
+        // Every 5 reps - coin sound and animation
+        if (totalRepsCompleted > 0 && totalRepsCompleted % 5 === 0) {
+          playCoinSound();
+          animateCoin();
+          setCoinsEarned((prev) => prev + 1);
+        }
+
+        // Every 10 reps - verbal motivation
+        if (totalRepsCompleted > 0 && totalRepsCompleted % 10 === 0) {
+          const randomPhrase = MOTIVATION_PHRASES[Math.floor(Math.random() * MOTIVATION_PHRASES.length)];
+          speakMotivation(randomPhrase);
+        }
+
+        // Check if workout is complete
+        if (countDirection === 'up' && newRep >= target) {
+          setIsCompleted(true);
+          stopAutoCounter();
+          speakMotivation("Workout complete! Great job!");
+          playCoinSound();
+          animateCoin();
+          setCoinsEarned((prev) => prev + 2);
+        } else if (countDirection === 'down' && newRep <= 0) {
+          setIsCompleted(true);
+          stopAutoCounter();
+          speakMotivation("Workout complete! Great job!");
+          playCoinSound();
+          animateCoin();
+          setCoinsEarned((prev) => prev + 2);
+        }
+
+        // Save rep to backend
+        fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/reps`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ exercise_type: exerciseType, coins_earned: totalRepsCompleted % 5 === 0 ? 1 : 0 }),
+        }).catch(() => {});
+
+        return newRep;
+      });
+    }, intervalMs);
+  }, [autoInterval, countDirection, targetReps, exerciseType]);
+
+  // Pause/Resume for auto mode
+  const togglePause = () => {
+    if (isPaused) {
+      // Resume
+      setIsPaused(false);
+      startAutoCounter();
+    } else {
+      // Pause
+      setIsPaused(true);
+      stopAutoCounter();
+    }
+  };
+
   const startWorkout = () => {
     const target = parseInt(targetReps) || 20;
     if (countDirection === 'down') {
