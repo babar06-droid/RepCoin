@@ -49,6 +49,8 @@ const MOTIVATION_PHRASES = [
 export default function WorkoutScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [permission, requestPermission] = useCameraPermissions();
+  const [cameraFacing, setCameraFacing] = useState<'front' | 'back'>('front');
 
   const [exerciseType, setExerciseType] = useState<ExerciseType>('pushup');
   const [countDirection, setCountDirection] = useState<CountDirection>('up');
