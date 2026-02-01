@@ -223,14 +223,14 @@ export default function WorkoutScreen() {
     if (countDirection === 'up' && newRep >= target) {
       setIsCompleted(true);
       stopAutoCounter();
-      speakMotivation("Workout complete! Great job!");
+      speakMotivation("WORKOUT COMPLETE! YOU'RE A CHAMPION!");
       playCoinSound();
       animateCoin();
       setCoinsEarned((prev) => prev + 2); // Bonus coins for completion
     } else if (countDirection === 'down' && newRep <= 0) {
       setIsCompleted(true);
       stopAutoCounter();
-      speakMotivation("Workout complete! Great job!");
+      speakMotivation("WORKOUT COMPLETE! YOU'RE A CHAMPION!");
       playCoinSound();
       animateCoin();
       setCoinsEarned((prev) => prev + 2); // Bonus coins for completion
@@ -292,14 +292,14 @@ export default function WorkoutScreen() {
         if (countDirection === 'up' && newRep >= target) {
           setIsCompleted(true);
           stopAutoCounter();
-          speakMotivation("Workout complete! Great job!");
+          speakMotivation("WORKOUT COMPLETE! YOU'RE A CHAMPION!");
           playCoinSound();
           animateCoin();
           setCoinsEarned((prev) => prev + 2);
         } else if (countDirection === 'down' && newRep <= 0) {
           setIsCompleted(true);
           stopAutoCounter();
-          speakMotivation("Workout complete! Great job!");
+          speakMotivation("WORKOUT COMPLETE! YOU'RE A CHAMPION!");
           playCoinSound();
           animateCoin();
           setCoinsEarned((prev) => prev + 2);
