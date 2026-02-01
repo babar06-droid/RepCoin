@@ -23,6 +23,7 @@ const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 type ExerciseType = 'pushup' | 'situp';
 type CountDirection = 'up' | 'down';
+type CountMode = 'manual' | 'auto';
 
 interface CoinAnimation {
   id: number;
