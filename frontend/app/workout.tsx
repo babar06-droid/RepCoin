@@ -261,6 +261,7 @@ export default function WorkoutScreen() {
     setIsTracking(true);
     isTrackingRef.current = true;
     currentStateRef.current = 'up';  // Start in UP position
+    shoulderYHistoryRef.current = []; // Reset smoothing history
     setStatusMessage('📷 Get in position - Start in UP');
     setAiStatus('Starting...');
     
@@ -285,6 +286,7 @@ export default function WorkoutScreen() {
     setCurrentPosition('unknown');
     setAiStatus('Ready');
     currentStateRef.current = 'up';  // Reset state
+    shoulderYHistoryRef.current = []; // Clear history
     
     if (analysisLoopRef.current) {
       clearTimeout(analysisLoopRef.current);
