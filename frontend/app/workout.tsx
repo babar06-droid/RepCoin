@@ -61,6 +61,9 @@ export default function WorkoutScreen() {
   const lastRepTimeRef = useRef(0);
   const analysisLoopRef = useRef<NodeJS.Timeout | null>(null);
   const isTrackingRef = useRef(false);
+  
+  // Smoothing: keep last 5 shoulder_y values
+  const shoulderYHistoryRef = useRef<number[]>([]);
 
   useEffect(() => {
     loadSound();
