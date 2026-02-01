@@ -547,19 +547,34 @@ export default function WorkoutScreen() {
         </Animated.View>
       ))}
 
-      {/* Big Tap Button */}
+      {/* Big Tap Button / Auto Mode Controls */}
       <View style={styles.bottomSection}>
         {!isCompleted ? (
-          <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
-            <TouchableOpacity 
-              style={styles.tapButton} 
-              onPress={handleRepCount}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.tapButtonText}>TAP</Text>
-              <Text style={styles.tapButtonSubtext}>for each rep</Text>
-            </TouchableOpacity>
-          </Animated.View>
+          countMode === 'manual' ? (
+            // Manual mode - tap button
+            <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+              <TouchableOpacity 
+                style={styles.tapButton} 
+                onPress={handleRepCount}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.tapButtonText}>TAP</Text>
+                <Text style={styles.tapButtonSubtext}>for each rep</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          ) : (
+            // Auto mode - pause/resume button
+            countdown === null && (
+              <TouchableOpacity 
+                style={[styles.tapButton, isPaused && styles.pausedButton]} 
+                onPress={togglePause}
+                activeOpacity={0.7}
+              >
+                <Ionicons name={isPaused ? 'play' : 'pause'} size={48} color="#000" />
+                <Text style={styles.tapButtonSubtext}>{isPaused ? 'Resume' : 'Pause'}</Text>
+              </TouchableOpacity>
+            )
+          )
         ) : (
           <TouchableOpacity style={styles.finishButton} onPress={endWorkout}>
             <Ionicons name="trophy" size={32} color="#000" />
