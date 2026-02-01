@@ -795,6 +795,51 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a0a0a' 
   },
   
+  // Camera styles
+  cameraBackground: {
+    flex: 1,
+  },
+  cameraOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  noCameraContainer: {
+    flex: 1,
+    backgroundColor: '#0a0a0a',
+  },
+  topControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginTop: 8,
+  },
+  flipCameraBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  permissionBtn: {
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: 'rgba(255,215,0,0.2)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+    marginVertical: 20,
+  },
+  permissionText: {
+    color: '#FFD700',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  
   // Setup Screen
   setupContainer: {
     flexGrow: 1,
