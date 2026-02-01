@@ -34,16 +34,20 @@ interface CoinAnimation {
   scale: Animated.Value;
 }
 
-// Motivational phrases for every 10 reps
+// Motivational phrases for every 10 reps - POWERFUL VOICE
 const MOTIVATION_PHRASES = [
-  "Yeah!",
-  "Let's go!",
-  "Keep pushing!",
-  "You got this!",
-  "Amazing!",
-  "On fire!",
-  "Beast mode!",
-  "Crushing it!",
+  "YEAH BABY!",
+  "LET'S GOOO!",
+  "KEEP PUSHING!",
+  "YOU GOT THIS!",
+  "BEAST MODE!",
+  "CRUSHING IT!",
+  "UNSTOPPABLE!",
+  "POWER UP!",
+  "NO LIMITS!",
+  "BRING IT!",
+  "FEEL THE BURN!",
+  "CHAMPION!",
 ];
 
 export default function WorkoutScreen() {
