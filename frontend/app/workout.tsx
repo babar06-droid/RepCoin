@@ -297,9 +297,12 @@ export default function WorkoutScreen() {
   };
 
   const resetWorkout = () => {
+    stopAutoCounter();
     setIsWorkoutStarted(false);
     setIsCompleted(false);
     setCurrentRep(0);
+    setCountdown(null);
+    setIsPaused(false);
   };
 
   const endWorkout = async () => {
