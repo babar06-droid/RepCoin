@@ -160,32 +160,11 @@ export default function WorkoutScreen() {
     Animated.timing(countdownScale, { toValue: 1, duration: 800, useNativeDriver: true }).start();
   };
 
-  // Start auto counting with interval
-  const startAutoCounter = useCallback(() => {
-    const intervalMs = (parseFloat(autoInterval) || 2) * 1000;
-    autoTimerRef.current = setInterval(() => {
-      handleRepCount();
-    }, intervalMs);
-  }, [autoInterval, handleRepCount]);
-
   // Stop auto counter
   const stopAutoCounter = () => {
     if (autoTimerRef.current) {
       clearInterval(autoTimerRef.current);
       autoTimerRef.current = null;
-    }
-  };
-
-  // Pause/Resume for auto mode
-  const togglePause = () => {
-    if (isPaused) {
-      // Resume
-      setIsPaused(false);
-      startAutoCounter();
-    } else {
-      // Pause
-      setIsPaused(true);
-      stopAutoCounter();
     }
   };
 
