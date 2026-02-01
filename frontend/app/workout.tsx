@@ -895,4 +895,58 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000',
   },
+  // Auto mode styles
+  autoModeActive: {
+    backgroundColor: '#FF9800',
+    borderColor: '#FF9800',
+  },
+  intervalSelector: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  intervalBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#333',
+  },
+  intervalBtnActive: {
+    backgroundColor: '#FF9800',
+    borderColor: '#FF9800',
+  },
+  intervalBtnText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  intervalBtnTextActive: {
+    color: '#000',
+  },
+  countdownOverlay: {
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(255,152,0,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countdownNumber: {
+    fontSize: 100,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  countdownLabel: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+    marginTop: -10,
+  },
+  pausedButton: {
+    backgroundColor: '#4CAF50',
+  },
 });
