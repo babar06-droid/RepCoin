@@ -19,8 +19,9 @@ const { width, height } = Dimensions.get('window');
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 // State machine thresholds for rep counting
-const DOWN_THRESHOLD = 0.55;  // shoulder_y above this = DOWN position
-const UP_THRESHOLD = 0.45;    // shoulder_y below this = UP position
+// Based on observed values: UP ~0.28-0.42, DOWN should be higher
+const DOWN_THRESHOLD = 0.50;  // shoulder_y above this = DOWN position
+const UP_THRESHOLD = 0.35;    // shoulder_y below this = UP position
 
 type ExerciseType = 'pushup' | 'situp';
 
