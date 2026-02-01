@@ -51,6 +51,8 @@ export default function WorkoutScreen() {
 
   const [exerciseType, setExerciseType] = useState<ExerciseType>('pushup');
   const [countDirection, setCountDirection] = useState<CountDirection>('up');
+  const [countMode, setCountMode] = useState<CountMode>('manual');
+  const [autoInterval, setAutoInterval] = useState('2'); // seconds between auto reps
   const [targetReps, setTargetReps] = useState('20');
   const [currentRep, setCurrentRep] = useState(0);
   const [coinsEarned, setCoinsEarned] = useState(0);
@@ -58,12 +60,16 @@ export default function WorkoutScreen() {
   const [sessionStats, setSessionStats] = useState({ pushups: 0, situps: 0 });
   const [isWorkoutStarted, setIsWorkoutStarted] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
 
   const coinIdRef = useRef(0);
   const chachingSoundRef = useRef<Audio.Sound | null>(null);
   const repScale = useRef(new Animated.Value(1)).current;
   const walletScale = useRef(new Animated.Value(1)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
+  const countdownScale = useRef(new Animated.Value(1)).current;
+  const autoTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadSound();
