@@ -266,7 +266,34 @@ export default function WorkoutScreen() {
     setIsCompleted(false);
     setCoinsEarned(0);
     setSessionStats({ pushups: 0, situps: 0 });
-    speakMotivation("Let's go!");
+    setIsPaused(false);
+    
+    // If auto mode, start 3 second countdown
+    if (countMode === 'auto') {
+      setCountdown(3);
+      Speech.speak("3", { rate: 1.2 });
+      animateCountdown();
+      
+      setTimeout(() => {
+        setCountdown(2);
+        Speech.speak("2", { rate: 1.2 });
+        animateCountdown();
+      }, 1000);
+      
+      setTimeout(() => {
+        setCountdown(1);
+        Speech.speak("1", { rate: 1.2 });
+        animateCountdown();
+      }, 2000);
+      
+      setTimeout(() => {
+        setCountdown(null);
+        Speech.speak("Go!", { rate: 1.0, pitch: 1.2 });
+        startAutoCounter();
+      }, 3000);
+    } else {
+      speakMotivation("Let's go!");
+    }
   };
 
   const resetWorkout = () => {
