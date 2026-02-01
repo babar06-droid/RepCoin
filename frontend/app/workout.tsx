@@ -407,6 +407,49 @@ export default function WorkoutScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Count Mode */}
+          <Text style={styles.sectionLabel}>Count Mode</Text>
+          <View style={styles.directionSelector}>
+            <TouchableOpacity
+              style={[styles.directionBtn, countMode === 'manual' && styles.directionBtnActive]}
+              onPress={() => setCountMode('manual')}
+            >
+              <Ionicons name="hand-left" size={24} color={countMode === 'manual' ? '#000' : '#FFF'} />
+              <Text style={[styles.directionBtnText, countMode === 'manual' && styles.directionBtnTextActive]}>
+                Manual{'\n'}Tap to count
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.directionBtn, countMode === 'auto' && styles.autoModeActive]}
+              onPress={() => setCountMode('auto')}
+            >
+              <Ionicons name="timer" size={24} color={countMode === 'auto' ? '#000' : '#FFF'} />
+              <Text style={[styles.directionBtnText, countMode === 'auto' && styles.directionBtnTextActive]}>
+                Auto{'\n'}Timed counter
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Auto Interval (only shown in auto mode) */}
+          {countMode === 'auto' && (
+            <>
+              <Text style={styles.sectionLabel}>Seconds per Rep</Text>
+              <View style={styles.intervalSelector}>
+                {['1', '2', '3', '4', '5'].map((sec) => (
+                  <TouchableOpacity
+                    key={sec}
+                    style={[styles.intervalBtn, autoInterval === sec && styles.intervalBtnActive]}
+                    onPress={() => setAutoInterval(sec)}
+                  >
+                    <Text style={[styles.intervalBtnText, autoInterval === sec && styles.intervalBtnTextActive]}>
+                      {sec}s
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
+
           {/* Rewards Info */}
           <View style={styles.rewardsInfo}>
             <Text style={styles.rewardsTitle}>🎁 Rewards</Text>
