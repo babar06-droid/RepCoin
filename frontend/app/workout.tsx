@@ -306,6 +306,7 @@ export default function WorkoutScreen() {
   };
 
   const endWorkout = async () => {
+    stopAutoCounter();
     try {
       await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/sessions`, {
         method: 'POST',
