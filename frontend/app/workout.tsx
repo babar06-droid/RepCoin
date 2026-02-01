@@ -115,10 +115,12 @@ export default function WorkoutScreen() {
   };
 
   const speakMotivation = (phrase: string) => {
+    // Big, strong, powerful voice settings
     Speech.speak(phrase, {
       language: 'en-US',
-      pitch: 1.1,
-      rate: 1.0,
+      pitch: 0.8,    // Lower pitch for deeper voice
+      rate: 0.85,    // Slightly slower for more impact
+      volume: 1.0,   // Full volume
     });
   };
 
