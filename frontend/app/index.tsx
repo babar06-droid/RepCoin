@@ -63,24 +63,18 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrapper: {
+    flex: 1,
+    backgroundColor: '#0a0a0a',
+  },
+  heroImage: {
     flex: 1,
     width: '100%',
-    height: '100%',
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  spacer: {
-    flex: 1,
   },
   bottomContent: {
     paddingHorizontal: 24,
     paddingTop: 20,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    backgroundColor: 'rgba(0,0,0,0.9)',
   },
   startButton: {
     flexDirection: 'row',
@@ -91,11 +85,6 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     paddingHorizontal: 32,
     borderRadius: 30,
-    shadowColor: '#FFD700',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
   },
   startButtonText: {
     color: '#000',
