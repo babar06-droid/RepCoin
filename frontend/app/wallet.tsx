@@ -24,6 +24,11 @@ interface WalletData {
   sessions_count: number;
 }
 
+interface RepPointsData {
+  rep_points: number;
+  message: string;
+}
+
 interface Session {
   id: string;
   pushups: number;
