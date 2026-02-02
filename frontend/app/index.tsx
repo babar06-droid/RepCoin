@@ -7,6 +7,7 @@ import {
   Animated,
   Dimensions,
   Platform,
+  ImageBackground,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
