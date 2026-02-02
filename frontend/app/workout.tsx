@@ -143,8 +143,34 @@ export default function WorkoutScreen() {
     }
   };
 
-  const speakMotivation = (phrase: string) => {
-    // Big, strong, powerful voice settings
+  const speakMotivation = async (phrase: string) => {
+    // Try to play custom recording first
+    if (customRecordings.length > 0) {
+      try {
+        // Stop any previous motivation sound
+        if (motivationSoundRef.current) {
+          await motivationSoundRef.current.unloadAsync();
+          motivationSoundRef.current = null;
+        }
+        
+        // Get next recording in rotation
+        const recording = customRecordings[customRecordingIndexRef.current % customRecordings.length];
+        customRecordingIndexRef.current++;
+        
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: recording.uri },
+          { shouldPlay: true, volume: 1.0 }
+        );
+        motivationSoundRef.current = sound;
+        console.log('Playing custom voice recording');
+        return;
+      } catch (error) {
+        console.log('Custom recording playback error:', error);
+        // Fall back to text-to-speech
+      }
+    }
+    
+    // Fallback: Big, strong, powerful voice settings
     Speech.speak(phrase, {
       language: 'en-US',
       pitch: 0.8,    // Lower pitch for deeper voice
