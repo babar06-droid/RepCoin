@@ -69,14 +69,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a0a0a',
   },
-  heroImage: {
+  imageContainer: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroImage: {
     width: '100%',
+    height: '100%',
   },
   bottomContent: {
     paddingHorizontal: 24,
     paddingTop: 20,
-    backgroundColor: 'rgba(0,0,0,0.9)',
+    backgroundColor: 'rgba(0,0,0,0.95)',
   },
   startButton: {
     flexDirection: 'row',
