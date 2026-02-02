@@ -85,19 +85,36 @@ export default function WalletScreen() {
 
   const fetchWalletData = async () => {
     try {
-      const [walletRes, sessionsRes] = await Promise.all([
+      const [walletRes, sessionsRes, repRes] = await Promise.all([
         fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/wallet`),
         fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/sessions`),
+        fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/wallet`), // Get REP points
       ]);
 
       if (walletRes.ok) {
         const data = await walletRes.json();
-        setWalletData(data);
+        // Handle both old format (total_coins etc) and new format (rep_points)
+        if (data.rep_points !== undefined) {
+          setRepPoints(data.rep_points);
+        }
+        if (data.total_coins !== undefined) {
+          setWalletData(prev => ({ ...prev, total_coins: data.total_coins }));
+        }
       }
 
       if (sessionsRes.ok) {
         const data = await sessionsRes.json();
-        setSessions(data.slice(0, 10)); // Get last 10 sessions
+        if (Array.isArray(data)) {
+          setSessions(data.slice(0, 10)); // Get last 10 sessions
+        }
+      }
+      
+      // Fetch REP points from the new endpoint
+      if (repRes.ok) {
+        const repData = await repRes.json();
+        if (repData.rep_points !== undefined) {
+          setRepPoints(repData.rep_points);
+        }
       }
     } catch (error) {
       console.log('Error fetching wallet data:', error);
