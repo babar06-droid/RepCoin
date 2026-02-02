@@ -347,4 +347,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 8,
   },
+  voiceStudioButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: '#FF6B6B',
+    marginTop: 12,
+  },
+  voiceStudioButtonText: {
+    color: '#FF6B6B',
+    fontSize: 16,
+    marginLeft: 8,
+  },
 });
