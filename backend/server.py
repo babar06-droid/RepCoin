@@ -97,6 +97,26 @@ class PoseAnalysisResponse(BaseModel):
     message: str
     raw_response: str = ""  # For debugging
 
+# REP Points models
+class RepPointsResponse(BaseModel):
+    rep_points: int
+    message: str
+
+class StoreItem(BaseModel):
+    item_id: str
+    name: str
+    cost: int
+    unlocked: bool
+
+class StorePurchaseRequest(BaseModel):
+    item_id: str
+
+class StorePurchaseResponse(BaseModel):
+    success: bool
+    message: str
+    rep_points: int
+    item_unlocked: bool
+
 
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
