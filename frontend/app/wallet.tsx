@@ -385,6 +385,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 4,
   },
+  storeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+    backgroundColor: 'rgba(255,215,0,0.1)',
+  },
+  storeButtonText: {
+    color: '#FFD700',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   cardDecor: {
     flexDirection: 'row',
     alignItems: 'center',
