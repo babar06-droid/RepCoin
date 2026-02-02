@@ -93,12 +93,28 @@ export default function WorkoutScreen() {
 
   useEffect(() => {
     loadSound();
+    loadCustomRecordings();
     return () => {
       if (chachingSoundRef.current) chachingSoundRef.current.unloadAsync();
+      if (motivationSoundRef.current) motivationSoundRef.current.unloadAsync();
       if (autoTimerRef.current) clearInterval(autoTimerRef.current);
       Speech.stop();
     };
   }, []);
+
+  const loadCustomRecordings = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(VOICE_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const recordings = Object.values(parsed) as RecordingInfo[];
+        setCustomRecordings(recordings);
+        console.log(`Loaded ${recordings.length} custom voice recordings`);
+      }
+    } catch (error) {
+      console.log('Load custom recordings error:', error);
+    }
+  };
 
   const loadSound = async () => {
     try {
