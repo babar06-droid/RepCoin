@@ -169,6 +169,16 @@ export default function HomeScreen() {
           <Ionicons name="wallet-outline" size={20} color="#FFD700" />
           <Text style={styles.walletButtonText}>View Wallet</Text>
         </TouchableOpacity>
+
+        {/* Voice Studio button */}
+        <TouchableOpacity
+          style={styles.voiceStudioButton}
+          onPress={() => router.push('/voice-studio')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="mic-outline" size={20} color="#FF6B6B" />
+          <Text style={styles.voiceStudioButtonText}>Voice Studio</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
