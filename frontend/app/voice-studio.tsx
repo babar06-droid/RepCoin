@@ -27,7 +27,7 @@ const MOTIVATION_SLOTS = [
   { id: 'phrase5', label: 'Phrase 5', suggestion: '"YOU GOT THIS!"' },
 ];
 
-const RECORDINGS_DIR = FileSystem.documentDirectory + 'voice_recordings/';
+const RECORDINGS_DIR = (FileSystem.documentDirectory || '') + 'voice_recordings/';
 const STORAGE_KEY = 'custom_voice_recordings';
 
 interface RecordingInfo {
