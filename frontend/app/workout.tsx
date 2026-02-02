@@ -80,11 +80,16 @@ export default function WorkoutScreen() {
 
   const coinIdRef = useRef(0);
   const chachingSoundRef = useRef<Audio.Sound | null>(null);
+  const motivationSoundRef = useRef<Audio.Sound | null>(null);
   const repScale = useRef(new Animated.Value(1)).current;
   const walletScale = useRef(new Animated.Value(1)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
   const countdownScale = useRef(new Animated.Value(1)).current;
   const autoTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Custom voice recordings
+  const [customRecordings, setCustomRecordings] = useState<RecordingInfo[]>([]);
+  const customRecordingIndexRef = useRef(0);
 
   useEffect(() => {
     loadSound();
