@@ -35,7 +35,6 @@ interface CoinAnimation {
   scale: Animated.Value;
 }
 
-// Motivational phrases for every 10 reps - POWERFUL VOICE
 const MOTIVATION_PHRASES = [
   "YEAH BABY!",
   "LET'S GOOO!",
@@ -50,6 +49,14 @@ const MOTIVATION_PHRASES = [
   "FEEL THE BURN!",
   "CHAMPION!",
 ];
+
+const VOICE_STORAGE_KEY = 'custom_voice_recordings';
+
+interface RecordingInfo {
+  id: string;
+  uri: string;
+  duration: number;
+}
 
 export default function WorkoutScreen() {
   const router = useRouter();
