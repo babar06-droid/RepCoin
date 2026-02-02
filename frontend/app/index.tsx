@@ -19,11 +19,13 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.wrapper}>
-      <ImageBackground
-        source={require('../assets/repcoin-hero.png')}
-        style={styles.heroImage}
-        resizeMode="contain"
-      />
+      <View style={styles.imageContainer}>
+        <ImageBackground
+          source={require('../assets/repcoin-hero.png')}
+          style={styles.heroImage}
+          resizeMode="contain"
+        />
+      </View>
       
       {/* Bottom content area */}
       <View style={[styles.bottomContent, { paddingBottom: insets.bottom + 20 }]}>
