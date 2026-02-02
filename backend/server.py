@@ -124,6 +124,109 @@ async def root():
     return {"message": "Rep Coin API - Earn While You Burn!"}
 
 
+# REP Points endpoints
+@api_router.post("/add_rep", response_model=RepPointsResponse)
+async def add_rep():
+    """Increment rep_points by 1 and return balance"""
+    user_store["demo_user"]["rep_points"] += 1
+    return RepPointsResponse(
+        rep_points=user_store["demo_user"]["rep_points"],
+        message="Rep added! Keep pushing!"
+    )
+
+@api_router.get("/wallet", response_model=RepPointsResponse)
+async def get_wallet():
+    """Get current rep_points"""
+    return RepPointsResponse(
+        rep_points=user_store["demo_user"]["rep_points"],
+        message="Current balance"
+    )
+
+@api_router.get("/store")
+async def get_store():
+    """Get store items with unlock status"""
+    return {
+        "items": [
+            {
+                "item_id": "badge",
+                "name": "Badge",
+                "cost": 50,
+                "unlocked": user_store["demo_user"]["badges_unlocked"]
+            },
+            {
+                "item_id": "premium",
+                "name": "Premium",
+                "cost": 100,
+                "unlocked": user_store["demo_user"]["premium_unlocked"]
+            }
+        ],
+        "rep_points": user_store["demo_user"]["rep_points"]
+    }
+
+@api_router.post("/store/purchase", response_model=StorePurchaseResponse)
+async def purchase_item(request: StorePurchaseRequest):
+    """Purchase a store item"""
+    user = user_store["demo_user"]
+    
+    if request.item_id == "badge":
+        cost = 50
+        if user["badges_unlocked"]:
+            return StorePurchaseResponse(
+                success=False,
+                message="Badge already unlocked!",
+                rep_points=user["rep_points"],
+                item_unlocked=True
+            )
+        if user["rep_points"] < cost:
+            return StorePurchaseResponse(
+                success=False,
+                message=f"Not enough REP points! Need {cost}, have {user['rep_points']}",
+                rep_points=user["rep_points"],
+                item_unlocked=False
+            )
+        user["rep_points"] -= cost
+        user["badges_unlocked"] = True
+        return StorePurchaseResponse(
+            success=True,
+            message="🎖️ Badge Unlocked!",
+            rep_points=user["rep_points"],
+            item_unlocked=True
+        )
+    
+    elif request.item_id == "premium":
+        cost = 100
+        if user["premium_unlocked"]:
+            return StorePurchaseResponse(
+                success=False,
+                message="Premium already unlocked!",
+                rep_points=user["rep_points"],
+                item_unlocked=True
+            )
+        if user["rep_points"] < cost:
+            return StorePurchaseResponse(
+                success=False,
+                message=f"Not enough REP points! Need {cost}, have {user['rep_points']}",
+                rep_points=user["rep_points"],
+                item_unlocked=False
+            )
+        user["rep_points"] -= cost
+        user["premium_unlocked"] = True
+        return StorePurchaseResponse(
+            success=True,
+            message="⭐ Premium Unlocked!",
+            rep_points=user["rep_points"],
+            item_unlocked=True
+        )
+    
+    else:
+        return StorePurchaseResponse(
+            success=False,
+            message="Item not found",
+            rep_points=user["rep_points"],
+            item_unlocked=False
+        )
+
+
 # Pose analysis endpoint - AI Vision
 @api_router.post("/analyze-pose", response_model=PoseAnalysisResponse)
 async def analyze_pose(request: PoseAnalysisRequest):
