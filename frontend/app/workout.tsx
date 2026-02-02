@@ -291,11 +291,17 @@ export default function WorkoutScreen() {
       setCoinsEarned((prev) => prev + 2); // Bonus coins for completion
     }
 
-    // Save rep to backend
+    // Save rep to backend (both old endpoint and new REP points endpoint)
     fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/reps`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ exercise_type: exerciseType, coins_earned: totalRepsCompleted % 5 === 0 ? 1 : 0 }),
+    }).catch(() => {});
+    
+    // Also increment REP points
+    fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/add_rep`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
     }).catch(() => {});
 
   }, [currentRep, countDirection, targetReps, exerciseType, isCompleted]);
