@@ -592,6 +592,26 @@ export default function WorkoutScreen() {
             <Text style={styles.rewardsText}>🏆 Complete workout = Bonus coins!</Text>
           </View>
 
+          {/* Simulate Rep Button - for quick testing */}
+          <TouchableOpacity 
+            style={styles.simulateRepBtn} 
+            onPress={async () => {
+              try {
+                const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/add_rep`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                });
+                const data = await res.json();
+                alert(`Rep added! REP Points: ${data.rep_points}`);
+              } catch (e) {
+                alert('Error adding rep');
+              }
+            }}
+          >
+            <Ionicons name="add-circle" size={24} color="#4CAF50" />
+            <Text style={styles.simulateRepBtnText}>Simulate Rep (+1 REP Point)</Text>
+          </TouchableOpacity>
+
           {/* Start Button */}
           <TouchableOpacity style={styles.startBtn} onPress={startWorkout}>
             <Ionicons name="fitness" size={28} color="#000" />
