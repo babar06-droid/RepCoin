@@ -49,6 +49,7 @@ export default function WalletScreen() {
   });
   const [sessions, setSessions] = useState<Session[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [repPoints, setRepPoints] = useState(0);
 
   // Animations
   const coinScale = useRef(new Animated.Value(0)).current;
