@@ -18,51 +18,47 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <ImageBackground
-      source={require('../assets/repcoin-hero.png')}
-      style={styles.container}
-      resizeMode="cover"
-    >
-      {/* Dark overlay for better text readability */}
-      <View style={styles.overlay}>
-        {/* Spacer to push content to bottom */}
-        <View style={styles.spacer} />
+    <View style={styles.wrapper}>
+      <ImageBackground
+        source={require('../assets/repcoin-hero.png')}
+        style={styles.heroImage}
+        resizeMode="contain"
+      />
+      
+      {/* Bottom content area */}
+      <View style={[styles.bottomContent, { paddingBottom: insets.bottom + 20 }]}>
+        {/* Start Workout Button */}
+        <TouchableOpacity
+          style={styles.startButton}
+          onPress={() => router.push('/workout')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="fitness" size={28} color="#000" />
+          <Text style={styles.startButtonText}>START WORKOUT</Text>
+        </TouchableOpacity>
 
-        {/* Bottom content area */}
-        <View style={[styles.bottomContent, { paddingBottom: insets.bottom + 20 }]}>
-          {/* Start Workout Button */}
+        {/* Secondary buttons row */}
+        <View style={styles.secondaryButtons}>
           <TouchableOpacity
-            style={styles.startButton}
-            onPress={() => router.push('/workout')}
+            style={styles.secondaryButton}
+            onPress={() => router.push('/wallet')}
             activeOpacity={0.8}
           >
-            <Ionicons name="fitness" size={28} color="#000" />
-            <Text style={styles.startButtonText}>START WORKOUT</Text>
+            <Ionicons name="wallet-outline" size={22} color="#FFD700" />
+            <Text style={styles.secondaryButtonText}>Wallet</Text>
           </TouchableOpacity>
 
-          {/* Secondary buttons row */}
-          <View style={styles.secondaryButtons}>
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={() => router.push('/wallet')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="wallet-outline" size={22} color="#FFD700" />
-              <Text style={styles.secondaryButtonText}>Wallet</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={() => router.push('/voice-studio')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="mic-outline" size={22} color="#FF6B6B" />
-              <Text style={[styles.secondaryButtonText, { color: '#FF6B6B' }]}>Voice Studio</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.push('/voice-studio')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="mic-outline" size={22} color="#FF6B6B" />
+            <Text style={[styles.secondaryButtonText, { color: '#FF6B6B' }]}>Voice Studio</Text>
+          </TouchableOpacity>
         </View>
       </View>
-    </ImageBackground>
+    </View>
   );
 }
 
