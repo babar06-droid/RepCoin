@@ -188,9 +188,18 @@ export default function WalletScreen() {
 
           <Text style={styles.balanceLabel}>Total Balance</Text>
           <Text style={styles.balanceAmount}>
-            {walletData.total_coins.toLocaleString()}
+            {repPoints.toLocaleString()}
           </Text>
-          <Text style={styles.currencyName}>REP COINS</Text>
+          <Text style={styles.currencyName}>REP POINTS</Text>
+
+          {/* Go to Store button */}
+          <TouchableOpacity
+            style={styles.storeButton}
+            onPress={() => router.push('/store')}
+          >
+            <Ionicons name="storefront" size={18} color="#FFD700" />
+            <Text style={styles.storeButtonText}>Visit Store</Text>
+          </TouchableOpacity>
 
           {/* Decorative elements */}
           <View style={styles.cardDecor}>
