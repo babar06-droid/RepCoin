@@ -24,6 +24,16 @@ db = client[os.environ['DB_NAME']]
 # LLM Key
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 
+# In-memory user store for REP points
+user_store = {
+    "demo_user": {
+        "username": "demo_user",
+        "rep_points": 0,
+        "badges_unlocked": False,
+        "premium_unlocked": False
+    }
+}
+
 # Create the main app without a prefix
 app = FastAPI()
 
