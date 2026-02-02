@@ -1060,6 +1060,23 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000',
   },
+  simulateRepBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(76,175,80,0.1)',
+    paddingVertical: 14,
+    borderRadius: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+  },
+  simulateRepBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4CAF50',
+  },
 
   // Active Workout Screen
   header: {
