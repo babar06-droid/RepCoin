@@ -407,24 +407,21 @@ export default function WorkoutScreen() {
     // If auto mode, start 3 second countdown
     if (countMode === 'auto') {
       setCountdown(3);
-      Speech.speak("THREE", { pitch: 0.7, rate: 0.8 });
       animateCountdown();
       
       setTimeout(() => {
         setCountdown(2);
-        Speech.speak("TWO", { pitch: 0.7, rate: 0.8 });
         animateCountdown();
       }, 1000);
       
       setTimeout(() => {
         setCountdown(1);
-        Speech.speak("ONE", { pitch: 0.7, rate: 0.8 });
         animateCountdown();
       }, 2000);
       
       setTimeout(() => {
         setCountdown(null);
-        Speech.speak("GO GO GO!", { pitch: 0.6, rate: 0.9 });
+        speakMotivation("GO!");
         startAutoCounter();
       }, 3000);
     } else {
