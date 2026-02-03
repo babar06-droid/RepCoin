@@ -736,11 +736,42 @@ export default function WorkoutScreen() {
   // Active workout screen
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Share Video Modal */}
+      <Modal
+        visible={showShareModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={discardVideo}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.shareModal}>
+            <Text style={styles.shareModalTitle}>🎬 Workout Recorded!</Text>
+            <Text style={styles.shareModalSubtitle}>
+              {currentRep} {exerciseType === 'pushup' ? 'Push-ups' : 'Sit-ups'} Challenge
+            </Text>
+            <Text style={styles.shareModalText}>
+              Share this video and challenge your friends to beat your record!
+            </Text>
+            
+            <TouchableOpacity style={styles.shareBtn} onPress={saveAndShareVideo}>
+              <Ionicons name="share-social" size={24} color="#000" />
+              <Text style={styles.shareBtnText}>Share Challenge</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.discardBtn} onPress={discardVideo}>
+              <Text style={styles.discardBtnText}>Discard Video</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Camera Background */}
       {permission?.granted ? (
         <CameraView 
+          ref={cameraRef}
           style={styles.cameraBackground}
           facing={cameraFacing}
+          mode="video"
         >
           {/* Camera Overlay UI */}
           <View style={styles.cameraOverlay}>
@@ -760,7 +791,7 @@ export default function WorkoutScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Exercise Badge & Camera Flip */}
+            {/* Exercise Badge & Camera Flip & Record Button */}
             <View style={styles.topControls}>
               <View style={styles.exerciseBadge}>
                 <MaterialCommunityIcons 
@@ -772,6 +803,25 @@ export default function WorkoutScreen() {
                   {exerciseType === 'pushup' ? 'PUSH-UPS' : 'SIT-UPS'}
                 </Text>
               </View>
+              
+              {/* Record Video Button */}
+              <TouchableOpacity 
+                style={[styles.recordBtn, isRecording && styles.recordingActive]}
+                onPress={isRecording ? stopRecording : startRecording}
+              >
+                {isRecording ? (
+                  <>
+                    <View style={styles.recordingIndicator} />
+                    <Text style={styles.recordingText}>{formatDuration(recordingDuration)}</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="videocam" size={20} color="#FFF" />
+                    <Text style={styles.recordBtnText}>REC</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
               <TouchableOpacity 
                 style={styles.flipCameraBtn}
                 onPress={() => setCameraFacing(prev => prev === 'front' ? 'back' : 'front')}
