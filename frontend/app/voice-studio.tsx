@@ -314,7 +314,7 @@ export default function VoiceStudioScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Voice Studio</Text>
+        <Text style={styles.headerTitle}>Voice Coach Studio</Text>
         <View style={{ width: 44 }} />
       </View>
 
