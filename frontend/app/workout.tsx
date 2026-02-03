@@ -95,6 +95,15 @@ export default function WorkoutScreen() {
   const customRecordingsRef = useRef<RecordingInfo[]>([]);
   const customRecordingIndexRef = useRef(0);
 
+  // Video recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedVideoUri, setRecordedVideoUri] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const cameraRef = useRef<CameraView>(null);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [mediaLibraryPermission, requestMediaLibraryPermission] = MediaLibrary.usePermissions();
+
   useEffect(() => {
     loadSound();
     loadCustomRecordings();
