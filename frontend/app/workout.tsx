@@ -145,8 +145,10 @@ export default function WorkoutScreen() {
   };
 
   const speakMotivation = async (phrase: string) => {
-    // Try to play custom recording first
-    if (customRecordings.length > 0) {
+    // Try to play custom recording first - use ref for reliable access in intervals
+    const recordings = customRecordingsRef.current;
+    
+    if (recordings.length > 0) {
       try {
         // Stop any previous motivation sound
         if (motivationSoundRef.current) {
@@ -155,8 +157,10 @@ export default function WorkoutScreen() {
         }
         
         // Get next recording in rotation
-        const recording = customRecordings[customRecordingIndexRef.current % customRecordings.length];
+        const recording = recordings[customRecordingIndexRef.current % recordings.length];
         customRecordingIndexRef.current++;
+        
+        console.log('Playing custom voice:', recording.uri);
         
         const { sound } = await Audio.Sound.createAsync(
           { uri: recording.uri },
