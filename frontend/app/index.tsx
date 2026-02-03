@@ -56,7 +56,16 @@ export default function HomeScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="mic-outline" size={22} color="#FF6B6B" />
-            <Text style={[styles.secondaryButtonText, { color: '#FF6B6B' }]}>Voice Studio</Text>
+            <Text style={[styles.secondaryButtonText, { color: '#FF6B6B' }]}>Voice</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.secondaryButton, styles.challengeButton]}
+            onPress={() => router.push('/challenge')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="trophy" size={22} color="#FF4444" />
+            <Text style={[styles.secondaryButtonText, { color: '#FF4444' }]}>Challenge</Text>
           </TouchableOpacity>
         </View>
       </View>
