@@ -273,6 +273,16 @@ const styles = StyleSheet.create({
     borderColor: '#FF4444',
     backgroundColor: 'rgba(255,68,68,0.1)',
   },
+  glowingChallengeButton: {
+    borderColor: '#FFD700',
+    borderWidth: 2,
+    backgroundColor: 'rgba(255,215,0,0.2)',
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 10,
+  },
   secondaryButtonText: {
     color: '#FFD700',
     fontSize: 14,
