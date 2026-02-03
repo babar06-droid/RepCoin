@@ -135,6 +135,28 @@ class StorePurchaseResponse(BaseModel):
     rep_points: int
     item_unlocked: bool
 
+# Challenge/Leaderboard Models
+class ChampionInfo(BaseModel):
+    exercise_type: str
+    champion_name: str
+    champion_photo: Optional[str] = None  # base64
+    best_reps: int
+    best_time_seconds: int
+    date_achieved: Optional[str] = None
+
+class ChallengeAttempt(BaseModel):
+    exercise_type: str
+    reps_completed: int
+    time_seconds: int
+    player_name: str
+    player_photo: Optional[str] = None  # base64
+
+class ChallengeResult(BaseModel):
+    success: bool
+    is_new_champion: bool
+    message: str
+    current_champion: ChampionInfo
+
 
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
