@@ -34,6 +34,24 @@ user_store = {
     }
 }
 
+# Global Champions/Leaderboard - Best of All Time
+champions = {
+    "pushup": {
+        "champion_name": "Be the first!",
+        "champion_photo": None,  # base64 image
+        "best_reps": 0,
+        "best_time_seconds": 0,
+        "date_achieved": None
+    },
+    "situp": {
+        "champion_name": "Be the first!",
+        "champion_photo": None,
+        "best_reps": 0,
+        "best_time_seconds": 0,
+        "date_achieved": None
+    }
+}
+
 # Create the main app without a prefix
 app = FastAPI()
 
