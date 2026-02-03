@@ -267,6 +267,100 @@ async def purchase_item(request: StorePurchaseRequest):
         )
 
 
+# Challenge/Leaderboard Endpoints
+@api_router.get("/challenge/{exercise_type}")
+async def get_champion(exercise_type: str):
+    """Get current champion for an exercise type"""
+    if exercise_type not in champions:
+        raise HTTPException(status_code=404, detail="Exercise type not found")
+    
+    champ = champions[exercise_type]
+    return ChampionInfo(
+        exercise_type=exercise_type,
+        champion_name=champ["champion_name"],
+        champion_photo=champ["champion_photo"],
+        best_reps=champ["best_reps"],
+        best_time_seconds=champ["best_time_seconds"],
+        date_achieved=champ["date_achieved"]
+    )
+
+@api_router.get("/challenge")
+async def get_all_champions():
+    """Get all champions"""
+    return {
+        "pushup": ChampionInfo(
+            exercise_type="pushup",
+            champion_name=champions["pushup"]["champion_name"],
+            champion_photo=champions["pushup"]["champion_photo"],
+            best_reps=champions["pushup"]["best_reps"],
+            best_time_seconds=champions["pushup"]["best_time_seconds"],
+            date_achieved=champions["pushup"]["date_achieved"]
+        ),
+        "situp": ChampionInfo(
+            exercise_type="situp",
+            champion_name=champions["situp"]["champion_name"],
+            champion_photo=champions["situp"]["champion_photo"],
+            best_reps=champions["situp"]["best_reps"],
+            best_time_seconds=champions["situp"]["best_time_seconds"],
+            date_achieved=champions["situp"]["date_achieved"]
+        )
+    }
+
+@api_router.post("/challenge/submit", response_model=ChallengeResult)
+async def submit_challenge(attempt: ChallengeAttempt):
+    """Submit a challenge attempt - become champion if you beat the record!"""
+    if attempt.exercise_type not in champions:
+        raise HTTPException(status_code=404, detail="Exercise type not found")
+    
+    current = champions[attempt.exercise_type]
+    
+    # Check if this beats the current record (more reps wins, or same reps in less time)
+    is_new_record = False
+    if attempt.reps_completed > current["best_reps"]:
+        is_new_record = True
+    elif attempt.reps_completed == current["best_reps"] and current["best_reps"] > 0:
+        if attempt.time_seconds < current["best_time_seconds"]:
+            is_new_record = True
+    
+    if is_new_record:
+        # Update champion!
+        champions[attempt.exercise_type] = {
+            "champion_name": attempt.player_name,
+            "champion_photo": attempt.player_photo,
+            "best_reps": attempt.reps_completed,
+            "best_time_seconds": attempt.time_seconds,
+            "date_achieved": datetime.utcnow().isoformat()
+        }
+        
+        return ChallengeResult(
+            success=True,
+            is_new_champion=True,
+            message=f"🏆 NEW CHAMPION! {attempt.player_name} with {attempt.reps_completed} reps!",
+            current_champion=ChampionInfo(
+                exercise_type=attempt.exercise_type,
+                champion_name=attempt.player_name,
+                champion_photo=attempt.player_photo,
+                best_reps=attempt.reps_completed,
+                best_time_seconds=attempt.time_seconds,
+                date_achieved=champions[attempt.exercise_type]["date_achieved"]
+            )
+        )
+    else:
+        return ChallengeResult(
+            success=True,
+            is_new_champion=False,
+            message=f"Good effort! Current record: {current['best_reps']} reps by {current['champion_name']}",
+            current_champion=ChampionInfo(
+                exercise_type=attempt.exercise_type,
+                champion_name=current["champion_name"],
+                champion_photo=current["champion_photo"],
+                best_reps=current["best_reps"],
+                best_time_seconds=current["best_time_seconds"],
+                date_achieved=current["date_achieved"]
+            )
+        )
+
+
 # Pose analysis endpoint - AI Vision
 @api_router.post("/analyze-pose", response_model=PoseAnalysisResponse)
 async def analyze_pose(request: PoseAnalysisRequest):
