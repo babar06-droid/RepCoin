@@ -114,16 +114,6 @@ Earn crypto while you burn calories! 🔥
 
   return (
     <View style={styles.wrapper}>
-      {/* REP Counter at top */}
-      <View style={[styles.repCounterContainer, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity style={styles.repCounter} onPress={() => router.push('/wallet')}>
-          <View style={styles.repCounterContent}>
-            <Text style={styles.repCounterText}>🔥 REP: {repPoints}</Text>
-            <Text style={styles.repSubtext}>Earn REP with every rep</Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-
       <View style={styles.imageContainer}>
         <ImageBackground
           source={require('../assets/repcoin-hero.png')}
@@ -134,15 +124,25 @@ Earn crypto while you burn calories! 🔥
       
       {/* Bottom content area */}
       <View style={[styles.bottomContent, { paddingBottom: insets.bottom + 20 }]}>
-        {/* Start Workout Button */}
-        <TouchableOpacity
-          style={styles.startButton}
-          onPress={() => router.push('/workout')}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="fitness" size={28} color="#000" />
-          <Text style={styles.startButtonText}>START WORKOUT</Text>
-        </TouchableOpacity>
+        {/* Start Workout Button with REP Counter */}
+        <View style={styles.startButtonRow}>
+          <TouchableOpacity
+            style={styles.startButton}
+            onPress={() => router.push('/workout')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="fitness" size={28} color="#000" />
+            <Text style={styles.startButtonText}>START WORKOUT</Text>
+          </TouchableOpacity>
+          
+          {/* REP Counter on right side */}
+          <TouchableOpacity style={styles.repCounter} onPress={() => router.push('/wallet')}>
+            <View style={styles.repCounterContent}>
+              <Text style={styles.repCounterText}>🔥 REP: {repPoints}</Text>
+              <Text style={styles.repSubtext}>Earn REP with every rep</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
 
         {/* Secondary buttons row */}
         <View style={styles.secondaryButtons}>
