@@ -535,6 +535,26 @@ const styles = StyleSheet.create({
   photoSection: {
     marginBottom: 20,
   },
+  photoOptions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  photoOptionBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 20,
+    backgroundColor: 'rgba(255,215,0,0.1)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  photoOptionText: {
+    fontSize: 12,
+    color: '#FFD700',
+    textAlign: 'center',
+  },
   cameraContainer: {
     height: 200,
     borderRadius: 16,
