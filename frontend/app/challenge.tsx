@@ -238,47 +238,54 @@ export default function ChallengeScreen() {
             />
 
             {/* Photo Section */}
-            <Text style={styles.inputLabel}>Your Champion Photo</Text>
-            {permission?.granted ? (
-              <View style={styles.photoSection}>
-                {playerPhoto ? (
-                  <View style={styles.photoPreview}>
-                    <Image
-                      source={{ uri: `data:image/jpeg;base64,${playerPhoto}` }}
-                      style={styles.previewImage}
-                    />
-                    <TouchableOpacity style={styles.retakeBtn} onPress={() => setPlayerPhoto(null)}>
-                      <Ionicons name="refresh" size={20} color="#FFF" />
-                      <Text style={styles.retakeBtnText}>Retake</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <View style={styles.cameraContainer}>
-                    <CameraView
-                      ref={cameraRef}
-                      style={styles.camera}
-                      facing="front"
-                    />
+            <Text style={styles.inputLabel}>Your Champion Photo (Optional)</Text>
+            <View style={styles.photoSection}>
+              {playerPhoto ? (
+                <View style={styles.photoPreview}>
+                  <Image
+                    source={{ uri: `data:image/jpeg;base64,${playerPhoto}` }}
+                    style={styles.previewImage}
+                  />
+                  <TouchableOpacity style={styles.retakeBtn} onPress={() => setPlayerPhoto(null)}>
+                    <Ionicons name="refresh" size={20} color="#FFF" />
+                    <Text style={styles.retakeBtnText}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.photoOptions}>
+                  {/* Pick from Gallery - works on all platforms */}
+                  <TouchableOpacity style={styles.photoOptionBtn} onPress={pickImageFromGallery}>
+                    <Ionicons name="images" size={28} color="#FFD700" />
+                    <Text style={styles.photoOptionText}>Pick from Gallery</Text>
+                  </TouchableOpacity>
+
+                  {/* Take Photo - camera only on mobile */}
+                  {Platform.OS !== 'web' && permission?.granted && (
                     <TouchableOpacity 
-                      style={styles.captureBtn} 
+                      style={styles.photoOptionBtn} 
                       onPress={takeChampionPhoto}
                       disabled={takingPhoto}
                     >
                       {takingPhoto ? (
-                        <ActivityIndicator color="#000" />
+                        <ActivityIndicator color="#FFD700" />
                       ) : (
-                        <Ionicons name="camera" size={32} color="#000" />
+                        <>
+                          <Ionicons name="camera" size={28} color="#FFD700" />
+                          <Text style={styles.photoOptionText}>Take Photo</Text>
+                        </>
                       )}
                     </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            ) : (
-              <TouchableOpacity style={styles.permissionBtn} onPress={requestPermission}>
-                <Ionicons name="camera" size={24} color="#FFD700" />
-                <Text style={styles.permissionText}>Enable Camera for Photo</Text>
-              </TouchableOpacity>
-            )}
+                  )}
+
+                  {Platform.OS !== 'web' && !permission?.granted && (
+                    <TouchableOpacity style={styles.photoOptionBtn} onPress={requestPermission}>
+                      <Ionicons name="camera-outline" size={28} color="#888" />
+                      <Text style={styles.photoOptionText}>Enable Camera</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </View>
 
             {/* Start Button */}
             <TouchableOpacity style={styles.startChallengeBtn} onPress={startChallenge}>
