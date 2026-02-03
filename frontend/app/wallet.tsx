@@ -196,6 +196,33 @@ export default function WalletScreen() {
           </Text>
           <Text style={styles.currencyName}>REP POINTS</Text>
 
+          {/* Quick Add Rep Button */}
+          <TouchableOpacity
+            style={styles.addRepButton}
+            onPress={async () => {
+              try {
+                const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/add_rep`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                });
+                if (res.ok) {
+                  const data = await res.json();
+                  setRepPoints(data.rep_points);
+                  // Animate coin
+                  Animated.sequence([
+                    Animated.timing(coinScale, { toValue: 1.2, duration: 100, useNativeDriver: true }),
+                    Animated.timing(coinScale, { toValue: 1, duration: 100, useNativeDriver: true }),
+                  ]).start();
+                }
+              } catch (error) {
+                console.log('Add rep error:', error);
+              }
+            }}
+          >
+            <Ionicons name="add-circle" size={18} color="#4CAF50" />
+            <Text style={styles.addRepButtonText}>+1 REP</Text>
+          </TouchableOpacity>
+
           {/* Go to Store button */}
           <TouchableOpacity
             style={styles.storeButton}
