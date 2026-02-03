@@ -276,33 +276,57 @@ export default function ChallengeScreen() {
                     <Text style={styles.photoOptionText}>Pick from Gallery</Text>
                   </TouchableOpacity>
 
-                  {/* Take Photo - camera only on mobile */}
-                  {Platform.OS !== 'web' && permission?.granted && (
+                  {/* Take Photo - opens camera modal on mobile */}
+                  {Platform.OS !== 'web' && (
                     <TouchableOpacity 
                       style={styles.photoOptionBtn} 
-                      onPress={takeChampionPhoto}
-                      disabled={takingPhoto}
+                      onPress={openCamera}
                     >
-                      {takingPhoto ? (
-                        <ActivityIndicator color="#FFD700" />
-                      ) : (
-                        <>
-                          <Ionicons name="camera" size={28} color="#FFD700" />
-                          <Text style={styles.photoOptionText}>Take Photo</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                  )}
-
-                  {Platform.OS !== 'web' && !permission?.granted && (
-                    <TouchableOpacity style={styles.photoOptionBtn} onPress={requestPermission}>
-                      <Ionicons name="camera-outline" size={28} color="#888" />
-                      <Text style={styles.photoOptionText}>Enable Camera</Text>
+                      <Ionicons name="camera" size={28} color="#FFD700" />
+                      <Text style={styles.photoOptionText}>Take Photo</Text>
                     </TouchableOpacity>
                   )}
                 </View>
               )}
             </View>
+
+            {/* Camera Modal */}
+            <Modal
+              visible={showCamera}
+              animationType="slide"
+              onRequestClose={() => setShowCamera(false)}
+            >
+              <View style={styles.cameraModal}>
+                <CameraView
+                  ref={cameraRef}
+                  style={styles.cameraView}
+                  facing="front"
+                >
+                  <View style={styles.cameraOverlay}>
+                    <TouchableOpacity 
+                      style={styles.closeCameraBtn}
+                      onPress={() => setShowCamera(false)}
+                    >
+                      <Ionicons name="close" size={32} color="#FFF" />
+                    </TouchableOpacity>
+                    
+                    <Text style={styles.cameraTitle}>Take Your Champion Photo</Text>
+                    
+                    <TouchableOpacity 
+                      style={styles.captureBtn}
+                      onPress={takeChampionPhoto}
+                      disabled={takingPhoto}
+                    >
+                      {takingPhoto ? (
+                        <ActivityIndicator size="large" color="#000" />
+                      ) : (
+                        <View style={styles.captureInner} />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </CameraView>
+              </View>
+            </Modal>
 
             {/* Start Button */}
             <TouchableOpacity style={styles.startChallengeBtn} onPress={startChallenge}>
