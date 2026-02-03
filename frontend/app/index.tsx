@@ -22,10 +22,15 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [repPoints, setRepPoints] = useState(0);
+  const [totalWorkouts, setTotalWorkouts] = useState(0);
 
-  useEffect(() => {
-    fetchRepPoints();
-  }, []);
+  // Auto-refresh REP points when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchRepPoints();
+      fetchStats();
+    }, [])
+  );
 
   const fetchRepPoints = async () => {
     try {
@@ -36,6 +41,74 @@ export default function HomeScreen() {
       }
     } catch (error) {
       console.log('Fetch rep points error:', error);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/wallet/stats`);
+      const data = await res.json();
+      if (data.sessions_count !== undefined) {
+        setTotalWorkouts(data.sessions_count);
+      }
+    } catch (error) {
+      console.log('Fetch stats error:', error);
+    }
+  };
+
+  const shareChallenge = async () => {
+    const challengeMessage = `💪 REP COIN CHALLENGE! 💪
+
+I've earned ${repPoints} REP Points and completed ${totalWorkouts} workouts!
+
+🏆 Think you can beat me?
+
+Download REP Coin and prove it! 
+Earn crypto while you burn calories! 🔥
+
+#REPCoin #FitnessChallenge #WorkoutMotivation`;
+
+    try {
+      const canShare = await Sharing.isAvailableAsync();
+      
+      if (Platform.OS === 'web') {
+        // Web fallback - try native share or copy to clipboard
+        if (navigator.share) {
+          await navigator.share({
+            title: 'REP Coin Challenge',
+            text: challengeMessage,
+          });
+        } else {
+          // Copy to clipboard fallback
+          await navigator.clipboard.writeText(challengeMessage);
+          Alert.alert('Copied!', 'Challenge message copied to clipboard. Paste it on your social media!');
+        }
+      } else if (canShare) {
+        // On mobile, we can share text directly
+        Alert.alert(
+          '🔥 Share Your Challenge!',
+          challengeMessage,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Copy & Share', 
+              onPress: async () => {
+                // For mobile, show the share sheet
+                // Since expo-sharing requires a file, we'll show an alert with copy option
+                Alert.alert(
+                  'Challenge Ready!',
+                  'Copy this message and share it on your favorite social media:\n\n' + challengeMessage
+                );
+              }
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Share Your Challenge!', challengeMessage);
+      }
+    } catch (error) {
+      console.log('Share error:', error);
+      Alert.alert('Share Your Challenge!', challengeMessage);
     }
   };
 
