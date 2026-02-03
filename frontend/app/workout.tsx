@@ -109,6 +109,7 @@ export default function WorkoutScreen() {
         const parsed = JSON.parse(stored);
         const recordings = Object.values(parsed) as RecordingInfo[];
         setCustomRecordings(recordings);
+        customRecordingsRef.current = recordings; // Also set ref for use in intervals
         console.log(`Loaded ${recordings.length} custom voice recordings`);
       }
     } catch (error) {
