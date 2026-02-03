@@ -105,6 +105,33 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a0a0a',
   },
+  repCounterContainer: {
+    position: 'absolute',
+    top: 0,
+    right: 16,
+    zIndex: 10,
+  },
+  repCounter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  repCounterText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFD700',
+  },
+  repCounterLabel: {
+    fontSize: 12,
+    color: '#FFD700',
+    fontWeight: '600',
+  },
   imageContainer: {
     flex: 1,
     justifyContent: 'center',
