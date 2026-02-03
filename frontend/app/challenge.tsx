@@ -161,7 +161,31 @@ export default function ChallengeScreen() {
             <Text style={styles.recordLabel}>RECORD TO BEAT</Text>
             <Text style={styles.recordNumber}>{currentChamp?.best_reps || 0}</Text>
             <Text style={styles.recordUnit}>REPS</Text>
+            {currentChamp && currentChamp.best_time_seconds > 0 && (
+              <Text style={styles.timeText}>
+                in {Math.floor(currentChamp.best_time_seconds / 60)}:{(currentChamp.best_time_seconds % 60).toString().padStart(2, '0')}
+              </Text>
+            )}
           </View>
+          
+          {/* Champion Stats */}
+          {currentChamp && currentChamp.best_reps > 0 && (
+            <View style={styles.championStats}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{currentChamp.best_reps}</Text>
+                <Text style={styles.statLabel}>Total Reps</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {currentChamp.best_time_seconds > 0 
+                    ? `${Math.floor(currentChamp.best_time_seconds / 60)}:${(currentChamp.best_time_seconds % 60).toString().padStart(2, '0')}`
+                    : '--:--'}
+                </Text>
+                <Text style={styles.statLabel}>Best Time</Text>
+              </View>
+            </View>
+          )}
           
           {currentChamp?.date_achieved && (
             <Text style={styles.dateText}>
