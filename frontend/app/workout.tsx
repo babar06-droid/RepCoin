@@ -602,9 +602,10 @@ export default function WorkoutScreen() {
                   headers: { 'Content-Type': 'application/json' },
                 });
                 const data = await res.json();
-                alert(`Rep added! REP Points: ${data.rep_points}`);
+                // Vibrate for feedback instead of popup
+                Vibration.vibrate(100);
               } catch (e) {
-                alert('Error adding rep');
+                console.log('Error adding rep');
               }
             }}
           >
