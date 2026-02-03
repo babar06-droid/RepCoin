@@ -512,9 +512,9 @@ async def get_sessions():
     return [WorkoutSession(**session) for session in sessions]
 
 
-# Wallet endpoint - aggregates all data
-@api_router.get("/wallet", response_model=WalletData)
-async def get_wallet():
+# Wallet endpoint - aggregates all data including REP points
+@api_router.get("/wallet/stats", response_model=WalletData)
+async def get_wallet_stats():
     # Count total reps by type
     pushup_count = await db.reps.count_documents({"exercise_type": "pushup"})
     situp_count = await db.reps.count_documents({"exercise_type": "situp"})
