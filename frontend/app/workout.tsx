@@ -88,6 +88,7 @@ export default function WorkoutScreen() {
   
   // Custom voice recordings
   const [customRecordings, setCustomRecordings] = useState<RecordingInfo[]>([]);
+  const customRecordingsRef = useRef<RecordingInfo[]>([]);
   const customRecordingIndexRef = useRef(0);
 
   useEffect(() => {
