@@ -695,4 +695,36 @@ const styles = StyleSheet.create({
     color: '#AAA',
     marginVertical: 4,
   },
+  cameraModal: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  cameraView: {
+    flex: 1,
+  },
+  cameraOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  closeCameraBtn: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    padding: 10,
+  },
+  cameraTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginTop: 60,
+  },
+  captureInner: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#FFF',
+  },
 });
