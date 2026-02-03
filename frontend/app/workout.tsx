@@ -158,6 +158,100 @@ export default function WorkoutScreen() {
     }
   };
 
+  // Video Recording Functions
+  const startRecording = async () => {
+    if (!cameraRef.current || Platform.OS === 'web') {
+      Alert.alert('Not Available', 'Video recording is only available on mobile devices (Expo Go)');
+      return;
+    }
+
+    try {
+      setIsRecording(true);
+      setRecordingDuration(0);
+      
+      // Start duration timer
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+
+      const video = await cameraRef.current.recordAsync({
+        maxDuration: 60, // Max 60 seconds
+      });
+      
+      if (video?.uri) {
+        setRecordedVideoUri(video.uri);
+        setShowShareModal(true);
+      }
+    } catch (error) {
+      console.log('Recording error:', error);
+      Alert.alert('Recording Error', 'Could not start video recording');
+    } finally {
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+    }
+  };
+
+  const stopRecording = async () => {
+    if (cameraRef.current && isRecording) {
+      try {
+        await cameraRef.current.stopRecording();
+      } catch (error) {
+        console.log('Stop recording error:', error);
+      }
+    }
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+    }
+  };
+
+  const saveAndShareVideo = async () => {
+    if (!recordedVideoUri) return;
+
+    try {
+      // Request media library permission if needed
+      if (!mediaLibraryPermission?.granted) {
+        const { granted } = await requestMediaLibraryPermission();
+        if (!granted) {
+          Alert.alert('Permission Required', 'Please allow access to save the video');
+          return;
+        }
+      }
+
+      // Save to media library
+      const asset = await MediaLibrary.createAssetAsync(recordedVideoUri);
+      
+      // Check if sharing is available
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(recordedVideoUri, {
+          mimeType: 'video/mp4',
+          dialogTitle: `🔥 ${currentRep} ${exerciseType === 'pushup' ? 'Push-ups' : 'Sit-ups'} Challenge! Can you beat this?`,
+        });
+      } else {
+        Alert.alert('Video Saved!', 'Your workout video has been saved to your gallery. Share it manually to challenge your friends!');
+      }
+
+      setShowShareModal(false);
+      setRecordedVideoUri(null);
+    } catch (error) {
+      console.log('Save/Share error:', error);
+      Alert.alert('Error', 'Could not save or share the video');
+    }
+  };
+
+  const discardVideo = () => {
+    setShowShareModal(false);
+    setRecordedVideoUri(null);
+  };
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const speakMotivation = async (phrase: string) => {
     // Try to play custom recording first - use ref for reliable access in intervals
     const recordings = customRecordingsRef.current;
