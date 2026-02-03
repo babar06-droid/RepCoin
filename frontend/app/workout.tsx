@@ -1043,6 +1043,99 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a0a0a' 
   },
   
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  shareModal: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 350,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFD700',
+  },
+  shareModalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFD700',
+    marginBottom: 8,
+  },
+  shareModalSubtitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFF',
+    marginBottom: 8,
+  },
+  shareModalText: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#FFD700',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 30,
+    width: '100%',
+    marginBottom: 12,
+  },
+  shareBtnText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  discardBtn: {
+    paddingVertical: 12,
+  },
+  discardBtnText: {
+    fontSize: 14,
+    color: '#888',
+  },
+
+  // Record button styles
+  recordBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,68,68,0.3)',
+    borderWidth: 2,
+    borderColor: '#FF4444',
+  },
+  recordingActive: {
+    backgroundColor: '#FF4444',
+  },
+  recordingIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#FFF',
+  },
+  recordingText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  recordBtnText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#FF4444',
+  },
+  
   // Camera styles
   cameraBackground: {
     flex: 1,
