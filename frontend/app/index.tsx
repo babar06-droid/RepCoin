@@ -172,6 +172,17 @@ Earn crypto while you burn calories! 🔥
             <Text style={[styles.secondaryButtonText, { color: '#FF4444' }]}>Challenge</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Share Challenge Button */}
+        <TouchableOpacity
+          style={styles.shareButton}
+          onPress={shareChallenge}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="share-social" size={22} color="#FFF" />
+          <Text style={styles.shareButtonText}>Share Challenge to the World</Text>
+          <Ionicons name="globe-outline" size={18} color="#FFF" />
+        </TouchableOpacity>
       </View>
     </View>
   );
