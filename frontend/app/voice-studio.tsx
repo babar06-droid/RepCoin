@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  Vibration,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,7 +14,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Motivation phrase slots
 const MOTIVATION_SLOTS = [
   { id: 'phrase1', label: 'Phrase 1', suggestion: '"YEAH BABY!"' },
   { id: 'phrase2', label: 'Phrase 2', suggestion: '"LET\'S GO!"' },
@@ -23,12 +22,11 @@ const MOTIVATION_SLOTS = [
   { id: 'phrase5', label: 'Phrase 5', suggestion: '"YOU GOT THIS!"' },
 ];
 
-const STORAGE_KEY = 'custom_voice_recordings';
+const STORAGE_KEY = 'custom_voice_recordings_v2';
 
 interface RecordingInfo {
   id: string;
   uri: string;
-  duration: number;
 }
 
 export default function VoiceStudioScreen() {
@@ -36,176 +34,262 @@ export default function VoiceStudioScreen() {
   const insets = useSafeAreaInsets();
   
   const [recordings, setRecordings] = useState<Record<string, RecordingInfo>>({});
-  const [recordingId, setRecordingId] = useState<string | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [isPlaying, setIsPlaying] = useState<string | null>(null);
-  const [permissionGranted, setPermissionGranted] = useState(false);
+  const [activeRecordingId, setActiveRecordingId] = useState<string | null>(null);
+  const [activePlayingId, setActivePlayingId] = useState<string | null>(null);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [statusMsg, setStatusMsg] = useState('');
   
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
-  const startTimeRef = useRef<number>(0);
+  const recordingObjRef = useRef<Audio.Recording | null>(null);
+  const soundObjRef = useRef<Audio.Sound | null>(null);
 
   useEffect(() => {
-    setupAudio();
-    loadRecordings();
-    
+    initAudio();
+    loadSavedRecordings();
     return () => {
-      cleanup();
+      cleanupAudio();
     };
   }, []);
 
-  const cleanup = async () => {
-    try {
-      if (recordingRef.current) {
-        await recordingRef.current.stopAndUnloadAsync();
-      }
-      if (soundRef.current) {
-        await soundRef.current.unloadAsync();
-      }
-    } catch {}
+  const cleanupAudio = async () => {
+    if (recordingObjRef.current) {
+      try { await recordingObjRef.current.stopAndUnloadAsync(); } catch {}
+    }
+    if (soundObjRef.current) {
+      try { await soundObjRef.current.unloadAsync(); } catch {}
+    }
   };
 
-  const setupAudio = async () => {
+  const initAudio = async () => {
     try {
-      const { status } = await Audio.requestPermissionsAsync();
-      setPermissionGranted(status === 'granted');
+      setStatusMsg('Requesting permission...');
       
+      // Request permission
+      const permResponse = await Audio.requestPermissionsAsync();
+      const granted = permResponse.status === 'granted';
+      setHasPermission(granted);
+      
+      if (!granted) {
+        setStatusMsg('Microphone permission denied');
+        return;
+      }
+
+      // Configure audio mode for Android recording
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
       });
+      
+      setStatusMsg('Ready to record');
     } catch (error) {
-      console.log('Audio setup error:', error);
+      console.log('initAudio error:', error);
+      setStatusMsg('Audio init failed');
     }
   };
 
-  const loadRecordings = async () => {
+  const loadSavedRecordings = async () => {
     try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setRecordings(JSON.parse(stored));
+      const data = await AsyncStorage.getItem(STORAGE_KEY);
+      if (data) {
+        setRecordings(JSON.parse(data));
       }
-    } catch (error) {
-      console.log('Load recordings error:', error);
+    } catch (e) {
+      console.log('Load error:', e);
     }
   };
 
-  const saveRecordings = async (newRecordings: Record<string, RecordingInfo>) => {
+  const saveRecordingsToStorage = async (recs: Record<string, RecordingInfo>) => {
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newRecordings));
-    } catch (error) {
-      console.log('Save recordings error:', error);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(recs));
+    } catch (e) {
+      console.log('Save error:', e);
     }
   };
 
-  const startRecording = async (phraseId: string) => {
-    if (!permissionGranted) {
-      Alert.alert('Permission Required', 'Please grant microphone access.');
-      setupAudio();
+  const handleRecord = async (phraseId: string) => {
+    // If already recording this phrase, stop it
+    if (activeRecordingId === phraseId) {
+      await stopRecording();
       return;
     }
 
-    // Stop any playback
-    if (soundRef.current) {
-      try {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
-      } catch {}
+    // If recording another phrase, stop that first
+    if (activeRecordingId) {
+      await stopRecording();
     }
-    setIsPlaying(null);
+
+    // Stop any playback
+    await stopPlayback();
+
+    // Start new recording
+    await startRecording(phraseId);
+  };
+
+  const startRecording = async (phraseId: string) => {
+    if (!hasPermission) {
+      Alert.alert('Permission Needed', 'Please allow microphone access');
+      await initAudio();
+      return;
+    }
 
     try {
-      const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      await recording.startAsync();
+      setStatusMsg('Starting recording...');
       
-      recordingRef.current = recording;
-      setRecordingId(phraseId);
-      setIsRecording(true);
-      startTimeRef.current = Date.now();
-      Vibration.vibrate(50);
+      // Ensure audio mode is set for recording
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+
+      const newRecording = new Audio.Recording();
+      
+      await newRecording.prepareToRecordAsync({
+        android: {
+          extension: '.m4a',
+          outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+          audioEncoder: Audio.AndroidAudioEncoder.AAC,
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+        },
+        ios: {
+          extension: '.m4a',
+          audioQuality: Audio.IOSAudioQuality.HIGH,
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        },
+        web: {
+          mimeType: 'audio/webm',
+          bitsPerSecond: 128000,
+        },
+      });
+      
+      await newRecording.startAsync();
+      
+      recordingObjRef.current = newRecording;
+      setActiveRecordingId(phraseId);
+      setStatusMsg('🔴 Recording... Tap to stop');
       
     } catch (error) {
-      console.log('Start recording error:', error);
-      Alert.alert('Error', 'Failed to start recording');
+      console.log('startRecording error:', error);
+      setStatusMsg('Failed to start recording');
+      Alert.alert('Error', 'Could not start recording. Please try again.');
     }
   };
 
   const stopRecording = async () => {
-    if (!recordingRef.current || !recordingId) return;
-
-    try {
-      setIsRecording(false);
-      const duration = (Date.now() - startTimeRef.current) / 1000;
-      
-      await recordingRef.current.stopAndUnloadAsync();
-      const uri = recordingRef.current.getURI();
-      
-      if (uri) {
-        const newRecording: RecordingInfo = {
-          id: recordingId,
-          uri: uri,
-          duration: duration,
-        };
-        
-        const updated = { ...recordings, [recordingId]: newRecording };
-        setRecordings(updated);
-        await saveRecordings(updated);
-        Vibration.vibrate(100);
-      }
-      
-      recordingRef.current = null;
-      setRecordingId(null);
-      
-    } catch (error) {
-      console.log('Stop recording error:', error);
-      setIsRecording(false);
-      setRecordingId(null);
-    }
-  };
-
-  const playRecording = async (phraseId: string) => {
-    const recording = recordings[phraseId];
-    if (!recording) return;
-
-    // Stop current playback
-    if (soundRef.current) {
-      try {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
-      } catch {}
-    }
-
-    if (isPlaying === phraseId) {
-      setIsPlaying(null);
+    if (!recordingObjRef.current || !activeRecordingId) {
+      setActiveRecordingId(null);
       return;
     }
 
     try {
+      setStatusMsg('Saving...');
+      
+      await recordingObjRef.current.stopAndUnloadAsync();
+      const uri = recordingObjRef.current.getURI();
+      
+      if (uri) {
+        const newRec: RecordingInfo = { id: activeRecordingId, uri };
+        const updated = { ...recordings, [activeRecordingId]: newRec };
+        setRecordings(updated);
+        await saveRecordingsToStorage(updated);
+        setStatusMsg('✓ Saved!');
+      } else {
+        setStatusMsg('No audio captured');
+      }
+      
+    } catch (error) {
+      console.log('stopRecording error:', error);
+      setStatusMsg('Save failed');
+    } finally {
+      recordingObjRef.current = null;
+      setActiveRecordingId(null);
+    }
+  };
+
+  const handlePlay = async (phraseId: string) => {
+    // If already playing this, stop it
+    if (activePlayingId === phraseId) {
+      await stopPlayback();
+      return;
+    }
+
+    // Stop any current playback
+    await stopPlayback();
+
+    // Stop any recording
+    if (activeRecordingId) {
+      await stopRecording();
+    }
+
+    // Play the recording
+    await playRecording(phraseId);
+  };
+
+  const playRecording = async (phraseId: string) => {
+    const rec = recordings[phraseId];
+    if (!rec?.uri) {
+      setStatusMsg('No recording found');
+      return;
+    }
+
+    try {
+      setStatusMsg('Playing...');
+      
+      // Set audio mode for playback
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+
       const { sound } = await Audio.Sound.createAsync(
-        { uri: recording.uri },
-        { shouldPlay: true }
+        { uri: rec.uri },
+        { shouldPlay: true, volume: 1.0 }
       );
       
-      soundRef.current = sound;
-      setIsPlaying(phraseId);
+      soundObjRef.current = sound;
+      setActivePlayingId(phraseId);
       
       sound.setOnPlaybackStatusUpdate((status) => {
         if (status.isLoaded && status.didJustFinish) {
-          setIsPlaying(null);
+          setActivePlayingId(null);
+          setStatusMsg('Ready');
         }
       });
       
     } catch (error) {
-      console.log('Play error:', error);
-      setIsPlaying(null);
+      console.log('playRecording error:', error);
+      setStatusMsg('Playback failed');
+      setActivePlayingId(null);
     }
   };
 
-  const deleteRecording = (phraseId: string) => {
-    Alert.alert('Delete Recording', 'Delete this recording?', [
+  const stopPlayback = async () => {
+    if (soundObjRef.current) {
+      try {
+        await soundObjRef.current.stopAsync();
+        await soundObjRef.current.unloadAsync();
+      } catch {}
+      soundObjRef.current = null;
+    }
+    setActivePlayingId(null);
+  };
+
+  const handleDelete = (phraseId: string) => {
+    Alert.alert('Delete?', 'Remove this recording?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -214,7 +298,8 @@ export default function VoiceStudioScreen() {
           const updated = { ...recordings };
           delete updated[phraseId];
           setRecordings(updated);
-          await saveRecordings(updated);
+          await saveRecordingsToStorage(updated);
+          setStatusMsg('Deleted');
         },
       },
     ]);
@@ -233,73 +318,74 @@ export default function VoiceStudioScreen() {
         <View style={{ width: 44 }} />
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Info */}
-        <View style={styles.infoCard}>
-          <Ionicons name="mic" size={32} color="#FFD700" />
-          <Text style={styles.infoTitle}>Record Your Voice</Text>
-          <Text style={styles.infoText}>
-            Record motivation phrases that play every 10 reps.
-          </Text>
-          <Text style={styles.progressText}>{recordedCount}/5 recorded</Text>
-        </View>
+      {/* Status Bar */}
+      <View style={styles.statusBar}>
+        <Text style={styles.statusText}>{statusMsg}</Text>
+        <Text style={styles.countText}>{recordedCount}/5 saved</Text>
+      </View>
 
-        {/* Recording Slots */}
+      <ScrollView style={styles.scrollView}>
+        {/* Permission check */}
+        {hasPermission === false && (
+          <TouchableOpacity style={styles.permissionCard} onPress={initAudio}>
+            <Ionicons name="mic-off" size={32} color="#FF4444" />
+            <Text style={styles.permissionTitle}>Microphone Access Needed</Text>
+            <Text style={styles.permissionText}>Tap here to grant permission</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Recording slots */}
         {MOTIVATION_SLOTS.map((slot) => {
-          const hasRecording = !!recordings[slot.id];
-          const isThisRecording = recordingId === slot.id && isRecording;
-          const isThisPlaying = isPlaying === slot.id;
+          const hasRec = !!recordings[slot.id];
+          const isRecording = activeRecordingId === slot.id;
+          const isPlaying = activePlayingId === slot.id;
           
           return (
             <View key={slot.id} style={styles.slotCard}>
-              <View style={styles.slotHeader}>
+              <View style={styles.slotTop}>
                 <Text style={styles.slotLabel}>{slot.label}</Text>
-                <Text style={styles.slotStatus}>
-                  {hasRecording ? '✓ Recorded' : slot.suggestion}
-                </Text>
+                {hasRec && <Text style={styles.savedBadge}>✓ Saved</Text>}
               </View>
               
-              <View style={styles.slotActions}>
-                {/* Record/Stop Button */}
+              <Text style={styles.suggestion}>{slot.suggestion}</Text>
+              
+              <View style={styles.buttons}>
+                {/* Record Button */}
                 <TouchableOpacity
-                  style={[styles.actionBtn, isThisRecording && styles.recordingBtn]}
-                  onPress={() => isThisRecording ? stopRecording() : startRecording(slot.id)}
-                  disabled={isRecording && !isThisRecording}
+                  style={[styles.recBtn, isRecording && styles.recBtnActive]}
+                  onPress={() => handleRecord(slot.id)}
                 >
                   <Ionicons 
-                    name={isThisRecording ? 'stop' : 'mic'} 
-                    size={22} 
-                    color={isThisRecording ? '#FFF' : '#FF4444'} 
+                    name={isRecording ? 'stop-circle' : 'mic'} 
+                    size={24} 
+                    color={isRecording ? '#FFF' : '#FF4444'} 
                   />
-                  <Text style={[styles.actionBtnText, isThisRecording && styles.recordingText]}>
-                    {isThisRecording ? 'Stop' : 'Record'}
+                  <Text style={[styles.recBtnText, isRecording && styles.recBtnTextActive]}>
+                    {isRecording ? 'STOP' : 'REC'}
                   </Text>
                 </TouchableOpacity>
                 
-                {/* Play Button */}
-                {hasRecording && (
+                {/* Play Button - only show if has recording */}
+                {hasRec && (
                   <TouchableOpacity
-                    style={[styles.actionBtn, styles.playBtn]}
-                    onPress={() => playRecording(slot.id)}
+                    style={[styles.playBtn, isPlaying && styles.playBtnActive]}
+                    onPress={() => handlePlay(slot.id)}
                   >
                     <Ionicons 
-                      name={isThisPlaying ? 'stop' : 'play'} 
-                      size={22} 
-                      color="#4CAF50" 
+                      name={isPlaying ? 'stop' : 'play'} 
+                      size={24} 
+                      color={isPlaying ? '#FFF' : '#4CAF50'} 
                     />
-                    <Text style={styles.playBtnText}>
-                      {isThisPlaying ? 'Stop' : 'Play'}
+                    <Text style={[styles.playBtnText, isPlaying && styles.playBtnTextActive]}>
+                      {isPlaying ? 'STOP' : 'PLAY'}
                     </Text>
                   </TouchableOpacity>
                 )}
                 
                 {/* Delete Button */}
-                {hasRecording && (
-                  <TouchableOpacity
-                    style={styles.deleteBtn}
-                    onPress={() => deleteRecording(slot.id)}
-                  >
-                    <Ionicons name="trash-outline" size={20} color="#FF4444" />
+                {hasRec && (
+                  <TouchableOpacity style={styles.delBtn} onPress={() => handleDelete(slot.id)}>
+                    <Ionicons name="trash" size={20} color="#FF4444" />
                   </TouchableOpacity>
                 )}
               </View>
@@ -307,22 +393,15 @@ export default function VoiceStudioScreen() {
           );
         })}
 
-        {/* Tips */}
-        <View style={styles.tipsCard}>
-          <Text style={styles.tipsTitle}>💡 Tips</Text>
-          <Text style={styles.tipText}>• Speak loudly and clearly</Text>
-          <Text style={styles.tipText}>• Keep phrases 1-3 seconds</Text>
-          <Text style={styles.tipText}>• Use an energetic tone</Text>
+        {/* Instructions */}
+        <View style={styles.instructions}>
+          <Text style={styles.instructTitle}>How to Record:</Text>
+          <Text style={styles.instructText}>1. Tap REC to start recording</Text>
+          <Text style={styles.instructText}>2. Say your motivation phrase</Text>
+          <Text style={styles.instructText}>3. Tap STOP to save</Text>
+          <Text style={styles.instructText}>4. Tap PLAY to preview</Text>
         </View>
       </ScrollView>
-
-      {/* Permission Warning */}
-      {!permissionGranted && (
-        <TouchableOpacity style={styles.permissionBanner} onPress={setupAudio}>
-          <Ionicons name="warning" size={20} color="#FFD700" />
-          <Text style={styles.permissionText}>Tap to enable microphone</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 }
@@ -352,128 +431,142 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFF',
   },
+  statusBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#1a1a1a',
+  },
+  statusText: {
+    color: '#FFD700',
+    fontSize: 14,
+  },
+  countText: {
+    color: '#4CAF50',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   scrollView: {
     flex: 1,
-  },
-  scrollContent: {
     padding: 16,
-    paddingBottom: 40,
   },
-  infoCard: {
-    backgroundColor: '#1a1a1a',
+  permissionCard: {
+    backgroundColor: '#2a1a1a',
     borderRadius: 16,
-    padding: 20,
+    padding: 24,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FF4444',
   },
-  infoTitle: {
-    fontSize: 20,
+  permissionTitle: {
+    color: '#FF4444',
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFD700',
-    marginTop: 8,
+    marginTop: 12,
   },
-  infoText: {
-    fontSize: 14,
+  permissionText: {
     color: '#888',
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  progressText: {
     fontSize: 14,
-    color: '#4CAF50',
-    marginTop: 8,
-    fontWeight: '600',
+    marginTop: 4,
   },
   slotCard: {
     backgroundColor: '#1a1a1a',
     borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
+    padding: 16,
+    marginBottom: 12,
   },
-  slotHeader: {
+  slotTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
   },
   slotLabel: {
-    fontSize: 16,
-    fontWeight: '600',
     color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
-  slotStatus: {
-    fontSize: 13,
-    color: '#888',
+  savedBadge: {
+    color: '#4CAF50',
+    fontSize: 12,
+    fontWeight: '600',
   },
-  slotActions: {
+  suggestion: {
+    color: '#666',
+    fontSize: 14,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  buttons: {
     flexDirection: 'row',
     gap: 10,
     alignItems: 'center',
   },
-  actionBtn: {
+  recBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,68,68,0.1)',
-    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255,68,68,0.15)',
+    borderWidth: 2,
     borderColor: '#FF4444',
   },
-  recordingBtn: {
+  recBtnActive: {
     backgroundColor: '#FF4444',
-    borderColor: '#FF4444',
   },
-  actionBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
+  recBtnText: {
     color: '#FF4444',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
-  recordingText: {
+  recBtnTextActive: {
     color: '#FFF',
   },
   playBtn: {
-    backgroundColor: 'rgba(76,175,80,0.1)',
-    borderColor: '#4CAF50',
-  },
-  playBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#4CAF50',
-  },
-  deleteBtn: {
-    padding: 10,
-    marginLeft: 'auto',
-  },
-  tipsCard: {
-    backgroundColor: 'rgba(255,215,0,0.1)',
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 10,
-  },
-  tipsTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#FFD700',
-    marginBottom: 6,
-  },
-  tipText: {
-    fontSize: 13,
-    color: '#CCC',
-    marginVertical: 2,
-  },
-  permissionBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255,215,0,0.15)',
-    paddingVertical: 14,
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    backgroundColor: 'rgba(76,175,80,0.15)',
+    borderWidth: 2,
+    borderColor: '#4CAF50',
   },
-  permissionText: {
+  playBtnActive: {
+    backgroundColor: '#4CAF50',
+  },
+  playBtnText: {
+    color: '#4CAF50',
+    fontWeight: 'bold',
     fontSize: 14,
+  },
+  playBtnTextActive: {
+    color: '#FFF',
+  },
+  delBtn: {
+    marginLeft: 'auto',
+    padding: 10,
+  },
+  instructions: {
+    backgroundColor: 'rgba(255,215,0,0.1)',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+  },
+  instructTitle: {
     color: '#FFD700',
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  instructText: {
+    color: '#AAA',
+    fontSize: 13,
+    marginVertical: 2,
   },
 });
