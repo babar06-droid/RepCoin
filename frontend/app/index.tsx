@@ -117,9 +117,10 @@ Earn crypto while you burn calories! 🔥
       {/* REP Counter at top */}
       <View style={[styles.repCounterContainer, { paddingTop: insets.top + 10 }]}>
         <TouchableOpacity style={styles.repCounter} onPress={() => router.push('/wallet')}>
-          <Ionicons name="wallet" size={20} color="#FFD700" />
-          <Text style={styles.repCounterText}>{repPoints}</Text>
-          <Text style={styles.repCounterLabel}>REP</Text>
+          <View style={styles.repCounterContent}>
+            <Text style={styles.repCounterText}>🔥 REP: {repPoints}</Text>
+            <Text style={styles.repSubtext}>Earn REP with every rep</Text>
+          </View>
         </TouchableOpacity>
       </View>
 
