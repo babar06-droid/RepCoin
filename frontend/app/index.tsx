@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,10 +12,28 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
+const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [repPoints, setRepPoints] = useState(0);
+
+  useEffect(() => {
+    fetchRepPoints();
+  }, []);
+
+  const fetchRepPoints = async () => {
+    try {
+      const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/wallet`);
+      const data = await res.json();
+      if (data.rep_points !== undefined) {
+        setRepPoints(data.rep_points);
+      }
+    } catch (error) {
+      console.log('Fetch rep points error:', error);
+    }
+  };
 
   return (
     <View style={styles.wrapper}>
