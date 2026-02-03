@@ -490,6 +490,10 @@ async def create_rep(input: RepCreate):
     rep_dict = input.dict()
     rep_obj = Rep(**rep_dict)
     _ = await db.reps.insert_one(rep_obj.dict())
+    
+    # IMPORTANT: Also increment REP points in user store
+    user_store["demo_user"]["rep_points"] += 1
+    
     return rep_obj
 
 @api_router.get("/reps", response_model=List[Rep])
