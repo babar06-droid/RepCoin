@@ -50,12 +50,11 @@ const MOTIVATION_PHRASES = [
   "CHAMPION!",
 ];
 
-const VOICE_STORAGE_KEY = 'custom_voice_recordings';
+const VOICE_STORAGE_KEY = 'custom_voice_recordings_v2';
 
 interface RecordingInfo {
   id: string;
   uri: string;
-  duration: number;
 }
 
 export default function WorkoutScreen() {
