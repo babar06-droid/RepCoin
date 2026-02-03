@@ -72,8 +72,28 @@ export default function ChallengeScreen() {
       }
     } catch (error) {
       console.log('Photo error:', error);
+      Alert.alert('Error', 'Could not take photo. Try picking from gallery instead.');
     } finally {
       setTakingPhoto(false);
+    }
+  };
+
+  const pickImageFromGallery = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0]?.base64) {
+        setPlayerPhoto(result.assets[0].base64);
+      }
+    } catch (error) {
+      console.log('Gallery pick error:', error);
+      Alert.alert('Error', 'Could not pick image from gallery');
     }
   };
 
