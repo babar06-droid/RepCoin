@@ -111,6 +111,7 @@ export default function WorkoutScreen() {
       if (chachingSoundRef.current) chachingSoundRef.current.unloadAsync();
       if (motivationSoundRef.current) motivationSoundRef.current.unloadAsync();
       if (autoTimerRef.current) clearInterval(autoTimerRef.current);
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
       Speech.stop();
     };
   }, []);
