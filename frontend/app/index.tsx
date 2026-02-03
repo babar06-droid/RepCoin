@@ -56,7 +56,7 @@ export default function HomeScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="mic-outline" size={22} color="#FF6B6B" />
-            <Text style={[styles.secondaryButtonText, { color: '#FF6B6B' }]}>Voice</Text>
+            <Text style={[styles.secondaryButtonText, { color: '#FF6B6B' }]}>Coach</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
