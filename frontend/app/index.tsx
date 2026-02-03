@@ -37,6 +37,15 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.wrapper}>
+      {/* REP Counter at top */}
+      <View style={[styles.repCounterContainer, { paddingTop: insets.top + 10 }]}>
+        <TouchableOpacity style={styles.repCounter} onPress={() => router.push('/wallet')}>
+          <Ionicons name="wallet" size={20} color="#FFD700" />
+          <Text style={styles.repCounterText}>{repPoints}</Text>
+          <Text style={styles.repCounterLabel}>REP</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.imageContainer}>
         <ImageBackground
           source={require('../assets/repcoin-hero.png')}
