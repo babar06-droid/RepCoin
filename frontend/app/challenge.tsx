@@ -420,6 +420,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#FFD700',
   },
+  timeText: {
+    fontSize: 14,
+    color: '#888',
+    marginTop: 4,
+  },
+  championStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    gap: 20,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  statLabel: {
+    fontSize: 11,
+    color: '#888',
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: '#333',
+  },
   dateText: {
     fontSize: 12,
     color: '#666',
