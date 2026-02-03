@@ -60,7 +60,10 @@ export default function ChallengeScreen() {
   };
 
   const takeChampionPhoto = async () => {
-    if (!cameraRef.current) return;
+    if (!cameraRef.current) {
+      Alert.alert('Error', 'Camera not ready');
+      return;
+    }
     
     setTakingPhoto(true);
     try {
@@ -70,6 +73,7 @@ export default function ChallengeScreen() {
       });
       if (photo?.base64) {
         setPlayerPhoto(photo.base64);
+        setShowCamera(false);
       }
     } catch (error) {
       console.log('Photo error:', error);
@@ -77,6 +81,17 @@ export default function ChallengeScreen() {
     } finally {
       setTakingPhoto(false);
     }
+  };
+
+  const openCamera = async () => {
+    if (!permission?.granted) {
+      const { granted } = await requestPermission();
+      if (!granted) {
+        Alert.alert('Permission Required', 'Camera permission is needed to take a photo');
+        return;
+      }
+    }
+    setShowCamera(true);
   };
 
   const pickImageFromGallery = async () => {
