@@ -41,6 +41,7 @@ export default function ChallengeScreen() {
   const [playerName, setPlayerName] = useState('');
   const [playerPhoto, setPlayerPhoto] = useState<string | null>(null);
   const [takingPhoto, setTakingPhoto] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
 
   useEffect(() => {
     fetchChampions();
