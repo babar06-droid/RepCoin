@@ -58,8 +58,6 @@ export default function WalletScreen() {
   const statsOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    fetchWalletData();
-    
     // Entrance animations
     Animated.sequence([
       Animated.spring(coinScale, {
@@ -84,37 +82,42 @@ export default function WalletScreen() {
     ).start();
   }, []);
 
+  // Auto-refresh REP points when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchWalletData();
+    }, [])
+  );
+
   const fetchWalletData = async () => {
     try {
-      const [walletRes, sessionsRes, repRes] = await Promise.all([
-        fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/wallet`),
-        fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/sessions`),
-        fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/wallet`), // Get REP points
-      ]);
-
-      if (walletRes.ok) {
-        const data = await walletRes.json();
-        // Handle both old format (total_coins etc) and new format (rep_points)
-        if (data.rep_points !== undefined) {
-          setRepPoints(data.rep_points);
-        }
-        if (data.total_coins !== undefined) {
-          setWalletData(prev => ({ ...prev, total_coins: data.total_coins }));
-        }
-      }
-
-      if (sessionsRes.ok) {
-        const data = await sessionsRes.json();
-        if (Array.isArray(data)) {
-          setSessions(data.slice(0, 10)); // Get last 10 sessions
-        }
-      }
-      
-      // Fetch REP points from the new endpoint
+      // Fetch REP points from main wallet endpoint
+      const repRes = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/wallet`);
       if (repRes.ok) {
         const repData = await repRes.json();
         if (repData.rep_points !== undefined) {
           setRepPoints(repData.rep_points);
+        }
+      }
+
+      // Fetch workout stats from stats endpoint
+      const statsRes = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/wallet/stats`);
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setWalletData({
+          total_coins: statsData.total_coins || 0,
+          total_pushups: statsData.total_pushups || 0,
+          total_situps: statsData.total_situps || 0,
+          sessions_count: statsData.sessions_count || 0,
+        });
+      }
+
+      // Fetch sessions
+      const sessionsRes = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/sessions`);
+      if (sessionsRes.ok) {
+        const data = await sessionsRes.json();
+        if (Array.isArray(data)) {
+          setSessions(data.slice(0, 10)); // Get last 10 sessions
         }
       }
     } catch (error) {
