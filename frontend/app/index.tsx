@@ -165,12 +165,12 @@ Earn crypto while you burn calories! 🔥
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.secondaryButton, styles.challengeButton]}
+            style={[styles.secondaryButton, styles.glowingChallengeButton]}
             onPress={() => router.push('/challenge')}
             activeOpacity={0.8}
           >
-            <Ionicons name="trophy" size={22} color="#FF4444" />
-            <Text style={[styles.secondaryButtonText, { color: '#FF4444' }]}>Challenge</Text>
+            <Ionicons name="trophy" size={22} color="#FFD700" />
+            <Text style={[styles.secondaryButtonText, { color: '#FFD700' }]}>Challenge</Text>
           </TouchableOpacity>
         </View>
 
