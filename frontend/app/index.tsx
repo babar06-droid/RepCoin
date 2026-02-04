@@ -219,11 +219,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a0a0a',
   },
   backgroundImage: {
-    width: width,
-    height: width * IMAGE_HEIGHT_MULTIPLIER, // Shows full image at correct aspect ratio
-    position: 'absolute',
-    top: 0,
-    left: 0,
+    width: IMAGE_WIDTH,
+    height: IMAGE_HEIGHT,
+    alignSelf: 'center',
+    marginTop: 0,
   },
   gradientOverlay: {
     position: 'absolute',
