@@ -22,8 +22,10 @@ const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 const REP_POINTS_KEY = '@rep_points';
 
 // Image aspect ratio is 4:5 (1000x1250) - portrait orientation
-// To get height from width: height = width * (1250/1000) = width * 1.25
-const IMAGE_HEIGHT_MULTIPLIER = 1.25;
+// Scale factor to fit image properly on screen
+const IMAGE_SCALE = 0.85; // 85% of screen width
+const IMAGE_WIDTH = width * IMAGE_SCALE;
+const IMAGE_HEIGHT = IMAGE_WIDTH * 1.25; // Maintain 4:5 aspect ratio
 
 export default function HomeScreen() {
   const router = useRouter();
