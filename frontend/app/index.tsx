@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     width: width,
-    height: width * IMAGE_HEIGHT_MULTIPLIER, // Maintain aspect ratio - shows full image
+    height: height, // Full screen height
   },
   gradientOverlay: {
     position: 'absolute',
