@@ -206,15 +206,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a0a0a',
   },
   backgroundImage: {
-    resizeMode: 'cover',
-    // Position image from top to show header content
-    position: 'absolute',
+    resizeMode: 'contain',
+    // Position image at the top
     top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    // This aligns the image to show from the top
-    objectPosition: 'top center',
+    backgroundColor: '#0a0a0a',
   },
   gradientOverlay: {
     position: 'absolute',
