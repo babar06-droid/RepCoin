@@ -133,8 +133,8 @@ Earn crypto while you burn calories! 🔥
           source={require('../assets/repcoin-hero.png')}
           style={{
             width: '100%',
-            height: 320,
-            marginTop: 10,
+            height: 380,
+            marginTop: 5,
           }}
           resizeMode="contain"
         />
