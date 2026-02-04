@@ -10,12 +10,14 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.repcoin.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Track your exercise reps with AI detection",
+        "NSCameraUsageDescription": "Track your exercise reps with AI pose detection",
         "NSMicrophoneUsageDescription": "Record workout videos with audio"
       }
     },
     "android": {
+      "package": "com.repcoin.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000"
@@ -37,6 +39,14 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#000"
+        }
+      ],
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "Rep Coin needs camera to detect your pushups with AI",
+          "enableMicrophonePermission": true,
+          "microphonePermissionText": "Rep Coin needs microphone for workout videos"
         }
       ]
     ],
