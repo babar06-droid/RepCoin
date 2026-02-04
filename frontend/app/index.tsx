@@ -209,6 +209,9 @@ const styles = StyleSheet.create({
   backgroundImage: {
     width: '100%',
     height: '100%',
+    resizeMode: 'cover',
+    // Position image from top to show the REP COIN text
+    top: 0,
   },
   gradientOverlay: {
     position: 'absolute',
