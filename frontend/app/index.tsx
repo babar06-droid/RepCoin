@@ -21,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const { width, height } = Dimensions.get('window');
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 const REP_POINTS_KEY = '@rep_points';
+const USER_ID_KEY = '@user_id';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -28,10 +29,11 @@ export default function HomeScreen() {
   const [repPoints, setRepPoints] = useState<number | null>(null);
   const [totalWorkouts, setTotalWorkouts] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
 
-  // Load REP points from AsyncStorage on mount
+  // Initialize user on mount
   useEffect(() => {
-    loadRepPointsFromStorage();
+    initializeUser();
   }, []);
 
   // Auto-refresh REP points when screen comes into focus
@@ -41,6 +43,26 @@ export default function HomeScreen() {
       fetchStats();
     }, [])
   );
+
+  const initializeUser = async () => {
+    try {
+      let storedUserId = await AsyncStorage.getItem(USER_ID_KEY);
+      
+      if (!storedUserId) {
+        const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/create-user`, { method: "POST" });
+        const data = await res.json();
+        storedUserId = data.user_id;
+        await AsyncStorage.setItem(USER_ID_KEY, storedUserId);
+      }
+      
+      setUserId(storedUserId);
+      // Load rep points after user is initialized
+      loadRepPointsFromStorage();
+    } catch (error) {
+      console.log('Initialize user error:', error);
+      loadRepPointsFromStorage();
+    }
+  };
 
   const loadRepPointsFromStorage = async () => {
     try {
