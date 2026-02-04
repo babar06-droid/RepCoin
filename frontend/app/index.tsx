@@ -218,12 +218,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a0a0a',
   },
-  backgroundImage: {
+  imageContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'flex-start', // Align image to top
+  },
+  backgroundImage: {
     width: width,
-    height: height, // Full screen height
+    height: width * IMAGE_HEIGHT_MULTIPLIER, // Actual image height based on aspect ratio
   },
   gradientOverlay: {
     position: 'absolute',
