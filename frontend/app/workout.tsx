@@ -410,14 +410,12 @@ export default function WorkoutScreen() {
       const newPoints = currentPoints + 1;
       await AsyncStorage.setItem(REP_POINTS_KEY, newPoints.toString());
 
-      // Sync with backend if user ID is available
+      // Sync with backend using POST /api/add-rep/{userId}?amount=1
       const currentUserId = userIdRef.current;
       if (currentUserId && EXPO_PUBLIC_BACKEND_URL) {
         try {
-          await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/user/${currentUserId}/rep_points`, {
+          await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/add-rep/${currentUserId}?amount=1`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ points: 1 }),
           });
         } catch (backendError) {
           console.log('Backend sync error:', backendError);
