@@ -97,6 +97,10 @@ export default function WorkoutScreen() {
   const customRecordingsRef = useRef<RecordingInfo[]>([]);
   const customRecordingIndexRef = useRef(0);
 
+  // User ID for backend sync
+  const [userId, setUserId] = useState<string | null>(null);
+  const userIdRef = useRef<string | null>(null);
+
   // Video recording state
   const [isRecording, setIsRecording] = useState(false);
   const [recordedVideoUri, setRecordedVideoUri] = useState<string | null>(null);
