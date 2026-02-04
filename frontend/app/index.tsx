@@ -202,24 +202,31 @@ Earn crypto while you burn calories! 🔥
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
+  container: {
     flex: 1,
     backgroundColor: '#0a0a0a',
   },
-  scrollView: {
-    flex: 1,
+  backgroundImage: {
+    width: '100%',
+    height: '100%',
   },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  heroImage: {
-    width: width,
-    height: width * 1.1,  // Aspect ratio to show full image
+  gradientOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '45%',
+    backgroundColor: 'transparent',
+    // Creates a gradient effect using linear gradient simulation
+    backgroundImage: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 50%, transparent 100%)',
   },
   bottomContent: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     paddingHorizontal: 24,
     paddingTop: 20,
-    backgroundColor: 'rgba(0,0,0,0.95)',
   },
   startButtonRow: {
     flexDirection: 'row',
