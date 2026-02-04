@@ -170,7 +170,7 @@ async def root():
 @api_router.post("/create-user")
 async def create_user():
     user_id = str(uuid4())
-    await db.users.insert_one({
+    await users.insert_one({
         "_id": user_id,
         "rep": 0
     })
@@ -180,18 +180,18 @@ async def create_user():
 # Add rep to user endpoint
 @api_router.post("/add-rep/{user_id}")
 async def add_rep(user_id: str, amount: int = 1):
-    await db.users.update_one(
+    await users.update_one(
         {"_id": user_id},
         {"$inc": {"rep": amount}}
     )
-    user = await db.users.find_one({"_id": user_id})
+    user = await users.find_one({"_id": user_id})
     return {"rep": user["rep"]}
 
 
 # Get user wallet endpoint
 @api_router.get("/wallet/{user_id}")
 async def get_wallet_by_user(user_id: str):
-    user = await db.users.find_one({"_id": user_id})
+    user = await users.find_one({"_id": user_id})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return {"rep": user["rep"]}
