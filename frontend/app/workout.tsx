@@ -381,13 +381,28 @@ export default function WorkoutScreen() {
     }
   };
 
-  // Save REP points to AsyncStorage
+  // Save REP points to AsyncStorage and sync with backend
   const incrementAndSaveRepPoints = async () => {
     try {
       const storedRep = await AsyncStorage.getItem(REP_POINTS_KEY);
       const currentPoints = storedRep ? parseInt(storedRep, 10) : 0;
       const newPoints = currentPoints + 1;
       await AsyncStorage.setItem(REP_POINTS_KEY, newPoints.toString());
+
+      // Sync with backend if user ID is available
+      const currentUserId = userIdRef.current;
+      if (currentUserId && EXPO_PUBLIC_BACKEND_URL) {
+        try {
+          await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/user/${currentUserId}/rep_points`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ points: 1 }),
+          });
+        } catch (backendError) {
+          console.log('Backend sync error:', backendError);
+          // Continue even if backend sync fails - local storage is primary
+        }
+      }
     } catch (error) {
       console.log('Save rep points error:', error);
     }
