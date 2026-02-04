@@ -211,15 +211,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a0a0a',
   },
-  imageContainer: {
+  scrollView: {
     flex: 1,
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    paddingTop: 0,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   heroImage: {
-    width: '100%',
-    height: '100%',
+    width: width,
+    height: width * 1.1,  // Aspect ratio to show full image
   },
   bottomContent: {
     paddingHorizontal: 24,
