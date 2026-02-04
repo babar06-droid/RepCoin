@@ -113,6 +113,7 @@ export default function WorkoutScreen() {
   useEffect(() => {
     loadSound();
     loadCustomRecordings();
+    loadOrGenerateUserId();
     return () => {
       if (chachingSoundRef.current) chachingSoundRef.current.unloadAsync();
       if (motivationSoundRef.current) motivationSoundRef.current.unloadAsync();
@@ -121,6 +122,22 @@ export default function WorkoutScreen() {
       Speech.stop();
     };
   }, []);
+
+  const loadOrGenerateUserId = async () => {
+    try {
+      let storedUserId = await AsyncStorage.getItem(USER_ID_KEY);
+      if (!storedUserId) {
+        // Generate a new user ID
+        storedUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        await AsyncStorage.setItem(USER_ID_KEY, storedUserId);
+      }
+      setUserId(storedUserId);
+      userIdRef.current = storedUserId;
+      console.log('User ID loaded/generated:', storedUserId);
+    } catch (error) {
+      console.log('Load user ID error:', error);
+    }
+  };
 
   const loadCustomRecordings = async () => {
     try {
