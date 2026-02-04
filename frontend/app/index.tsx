@@ -128,11 +128,10 @@ Earn crypto while you burn calories! 🔥
   return (
     <View style={styles.wrapper}>
       <View style={styles.imageContainer}>
-        <ImageBackground
+        <Image
           source={require('../assets/repcoin-hero.png')}
           style={styles.heroImage}
-          imageStyle={styles.heroImageStyle}
-          resizeMode="cover"
+          resizeMode="contain"
         />
       </View>
       
