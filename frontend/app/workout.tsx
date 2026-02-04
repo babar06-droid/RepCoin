@@ -793,9 +793,16 @@ export default function WorkoutScreen() {
               {currentRep} {exerciseType === 'pushup' ? 'Push-ups' : 'Sit-ups'} Challenge
             </Text>
             <Text style={styles.shareModalText}>
-              Share this video and challenge your friends to beat your record!
+              Save to gallery or share to challenge your friends!
             </Text>
             
+            {/* Save to Gallery Button */}
+            <TouchableOpacity style={styles.saveGalleryBtn} onPress={saveVideoToGallery}>
+              <Ionicons name="download" size={24} color="#FFF" />
+              <Text style={styles.saveGalleryBtnText}>Save to Gallery</Text>
+            </TouchableOpacity>
+            
+            {/* Share Button */}
             <TouchableOpacity style={styles.shareBtn} onPress={saveAndShareVideo}>
               <Ionicons name="share-social" size={24} color="#000" />
               <Text style={styles.shareBtnText}>Share Challenge</Text>
