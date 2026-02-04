@@ -11,7 +11,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "Track your exercise reps with AI detection"
+        "NSCameraUsageDescription": "Track your exercise reps with AI detection",
+        "NSMicrophoneUsageDescription": "Record workout videos with audio"
       }
     },
     "android": {
@@ -20,7 +21,7 @@
         "backgroundColor": "#000"
       },
       "edgeToEdgeEnabled": true,
-      "permissions": ["CAMERA"]
+      "permissions": ["CAMERA", "RECORD_AUDIO"]
     },
     "web": {
       "bundler": "metro",
@@ -37,7 +38,16 @@
           "resizeMode": "contain",
           "backgroundColor": "#000"
         }
-      ]
+      ],
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "Rep Coin needs camera access for AI pose detection",
+          "enableMicrophonePermission": true,
+          "microphonePermissionText": "Rep Coin needs microphone for workout videos"
+        }
+      ],
+      "react-native-mediapipe"
     ],
     "experiments": {
       "typedRoutes": true
