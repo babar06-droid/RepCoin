@@ -1175,6 +1175,156 @@ export default function WorkoutScreen() {
               )}
             </View>
           </View>
+        </View>
+      ) : permission?.granted ? (
+        // Regular modes (manual/auto) - Use standard CameraView
+        <CameraView 
+          ref={cameraRef}
+          style={styles.cameraBackground}
+          facing={cameraFacing}
+          mode="video"
+        >
+          {/* Camera Overlay UI */}
+          <View style={styles.cameraOverlay}>
+            {/* Header */}
+            <View style={styles.header}>
+              <TouchableOpacity style={styles.headerBtn} onPress={resetWorkout}>
+                <Ionicons name="arrow-back" size={24} color="#FFF" />
+              </TouchableOpacity>
+              
+              <Animated.View style={[styles.walletBadge, { transform: [{ scale: walletScale }] }]}>
+                <Ionicons name="wallet" size={24} color="#FFD700" />
+                <Text style={styles.walletText}>{coinsEarned}</Text>
+              </Animated.View>
+
+              <TouchableOpacity style={styles.headerBtn} onPress={endWorkout}>
+                <Ionicons name="stop-circle" size={24} color="#FF4444" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Exercise Badge & Camera Flip & Record Button */}
+            <View style={styles.topControls}>
+              <View style={styles.exerciseBadge}>
+                <MaterialCommunityIcons 
+                  name={exerciseType === 'pushup' ? 'arm-flex' : 'human'} 
+                  size={20} 
+                  color="#FFD700" 
+                />
+                <Text style={styles.exerciseBadgeText}>
+                  {exerciseType === 'pushup' ? 'PUSH-UPS' : 'SIT-UPS'}
+                </Text>
+              </View>
+              
+              {/* Record Video Button */}
+              <TouchableOpacity 
+                style={[styles.recordBtn, isRecording && styles.recordingActive]}
+                onPress={isRecording ? stopRecording : startRecording}
+              >
+                {isRecording ? (
+                  <>
+                    <View style={styles.recordingIndicator} />
+                    <Text style={styles.recordingText}>{formatDuration(recordingDuration)}</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="videocam" size={20} color="#FFF" />
+                    <Text style={styles.recordBtnText}>REC</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.flipCameraBtn}
+                onPress={() => setCameraFacing(prev => prev === 'front' ? 'back' : 'front')}
+              >
+                <Ionicons name="camera-reverse" size={24} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Progress Bar */}
+            <View style={styles.progressContainer}>
+              <View style={[styles.progressBar, { width: `${getProgress() * 100}%` }]} />
+            </View>
+
+            {/* Main Counter Display */}
+            <View style={styles.counterContainer}>
+              {/* Countdown overlay */}
+              {countdown !== null && (
+                <Animated.View style={[styles.countdownOverlay, { transform: [{ scale: countdownScale }] }]}>
+                  <Text style={styles.countdownNumber}>{countdown}</Text>
+                  <Text style={styles.countdownLabel}>GET READY!</Text>
+                </Animated.View>
+              )}
+              
+              {countdown === null && (
+                <Animated.View style={[styles.counterCircle, { transform: [{ scale: repScale }] }]}>
+                  <Text style={styles.counterNumber}>{getDisplayCount()}</Text>
+                  <Text style={styles.counterLabel}>
+                    {countDirection === 'up' ? `of ${targetReps}` : 'remaining'}
+                  </Text>
+                </Animated.View>
+              )}
+            </View>
+
+            {/* Completion Message */}
+            {isCompleted && (
+              <View style={styles.completionBanner}>
+                <Text style={styles.completionText}>🎉 WORKOUT COMPLETE! 🎉</Text>
+                <Text style={styles.completionSubtext}>+{coinsEarned} coins earned!</Text>
+              </View>
+            )}
+
+            {/* Coin Animations */}
+            {coinAnimations.map((coin) => (
+              <Animated.View
+                key={coin.id}
+                style={[styles.flyingCoin, {
+                  transform: [{ translateY: coin.translateY }, { translateX: coin.translateX }, { scale: coin.scale }],
+                  opacity: coin.opacity,
+                }]}
+              >
+                <View style={styles.coinIcon}>
+                  <Text style={styles.coinText}>$</Text>
+                </View>
+              </Animated.View>
+            ))}
+
+            {/* Big Tap Button / Auto Mode Controls */}
+            <View style={styles.bottomSection}>
+              {!isCompleted ? (
+                countMode === 'manual' ? (
+                  // Manual mode - tap button
+                  <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+                    <TouchableOpacity 
+                      style={styles.tapButton} 
+                      onPress={handleRepCount}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.tapButtonText}>TAP</Text>
+                      <Text style={styles.tapButtonSubtext}>for each rep</Text>
+                    </TouchableOpacity>
+                  </Animated.View>
+                ) : (
+                  // Auto mode - pause/resume button
+                  countdown === null && (
+                    <TouchableOpacity 
+                      style={[styles.tapButton, isPaused && styles.pausedButton]} 
+                      onPress={togglePause}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name={isPaused ? 'play' : 'pause'} size={48} color="#000" />
+                      <Text style={styles.tapButtonSubtext}>{isPaused ? 'Resume' : 'Pause'}</Text>
+                    </TouchableOpacity>
+                  )
+                )
+              ) : (
+                <TouchableOpacity style={styles.finishButton} onPress={endWorkout}>
+                  <Ionicons name="trophy" size={32} color="#000" />
+                  <Text style={styles.finishButtonText}>VIEW RESULTS</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
         </CameraView>
       ) : (
         // No camera permission - show regular UI without camera
