@@ -993,16 +993,17 @@ export default function WorkoutScreen() {
         </View>
       </Modal>
 
-      {/* Camera Background */}
-      {permission?.granted ? (
-        <CameraView 
-          ref={cameraRef}
-          style={styles.cameraBackground}
-          facing={cameraFacing}
-          mode="video"
-        >
-          {/* Camera Overlay UI */}
-          <View style={styles.cameraOverlay}>
+      {/* Camera Background - Use PoseDetectionCamera for AI mode */}
+      {countMode === 'ai' ? (
+        // AI Mode - Use MediaPipe Pose Detection Camera
+        <View style={styles.cameraBackground}>
+          <PoseDetectionCamera
+            onPoseDetected={handlePoseDetection}
+            cameraFacing={cameraFacing}
+            style={StyleSheet.absoluteFill}
+          />
+          {/* Camera Overlay UI for AI mode */}
+          <View style={[styles.cameraOverlay, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }]}>
             {/* Header */}
             <View style={styles.header}>
               <TouchableOpacity style={styles.headerBtn} onPress={resetWorkout}>
