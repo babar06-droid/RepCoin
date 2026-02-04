@@ -191,6 +191,8 @@ async def add_rep(user_id: str, amount: int = 1):
 @api_router.get("/wallet/{user_id}")
 async def get_wallet_by_user(user_id: str):
     user = await db.users.find_one({"_id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
     return {"rep": user["rep"]}
 
 
