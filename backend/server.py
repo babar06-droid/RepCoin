@@ -187,6 +187,13 @@ async def add_rep(user_id: str, amount: int = 1):
     return {"rep": user["rep"]}
 
 
+# Get user wallet endpoint
+@api_router.get("/wallet/{user_id}")
+async def get_wallet_by_user(user_id: str):
+    user = await db.users.find_one({"_id": user_id})
+    return {"rep": user["rep"]}
+
+
 # REP Points endpoints
 @api_router.post("/add_rep", response_model=RepPointsResponse)
 async def add_rep():
