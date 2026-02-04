@@ -21,8 +21,9 @@ const { width, height } = Dimensions.get('window');
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 const REP_POINTS_KEY = '@rep_points';
 
-// Image aspect ratio is 4:5 (1000x1250)
-const IMAGE_ASPECT_RATIO = 4 / 5;
+// Image aspect ratio is 4:5 (1000x1250) - portrait orientation
+// To get height from width: height = width * (1250/1000) = width * 1.25
+const IMAGE_HEIGHT_MULTIPLIER = 1.25;
 
 export default function HomeScreen() {
   const router = useRouter();
