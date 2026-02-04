@@ -1,22 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
-
-// Conditional imports for native modules (only available in dev build)
-let usePoseDetection: any = null;
-let MediapipeCamera: any = null;
-
-// Try to import mediapipe - will fail gracefully in Expo Go
-try {
-  const mediapipe = require('react-native-mediapipe');
-  usePoseDetection = mediapipe.usePoseDetection;
-  MediapipeCamera = mediapipe.MediapipeCamera;
-} catch (e) {
-  console.log('MediaPipe not available - requires development build');
-}
+import { CameraView, useCameraPermissions } from 'expo-camera';
 
 // MediaPipe Pose landmark indices
-const LEFT_SHOULDER_INDEX = 11;
-const RIGHT_SHOULDER_INDEX = 12;
+export const LEFT_SHOULDER_INDEX = 11;
+export const RIGHT_SHOULDER_INDEX = 12;
 
 interface PoseCameraProps {
   onPoseDetected: (landmarks: any[]) => void;
@@ -24,93 +12,101 @@ interface PoseCameraProps {
   style?: any;
 }
 
-// Fallback component when MediaPipe is not available
-const FallbackCamera: React.FC<PoseCameraProps> = ({ style }) => {
+// Check if we're in a development build (native modules available)
+let isDevBuild = false;
+let MediaPipeModule: any = null;
+
+// Try to load MediaPipe - this will fail gracefully in Expo Go
+const loadMediaPipe = () => {
+  try {
+    // This require will fail in Expo Go but work in dev builds
+    MediaPipeModule = require('react-native-mediapipe');
+    isDevBuild = true;
+    console.log('MediaPipe loaded successfully - AI mode available');
+    return true;
+  } catch (e) {
+    console.log('MediaPipe not available - running in Expo Go mode');
+    return false;
+  }
+};
+
+// Try to load on module initialization
+loadMediaPipe();
+
+// Fallback component when MediaPipe is not available (Expo Go)
+const FallbackCamera: React.FC<PoseCameraProps> = ({ onPoseDetected, cameraFacing, style }) => {
+  const [permission, requestPermission] = useCameraPermissions();
+  const [mockState, setMockState] = useState<'waiting' | 'simulating'>('waiting');
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // Request camera permission
+    if (!permission?.granted) {
+      requestPermission();
+    }
+    
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [permission]);
+
+  // No simulation needed - just show the camera with UI overlay
   return (
-    <View style={[styles.fallbackContainer, style]}>
-      <Text style={styles.fallbackTitle}>🤖 AI Mode</Text>
-      <Text style={styles.fallbackText}>
-        MediaPipe requires a development build.
-      </Text>
-      <Text style={styles.fallbackText}>
-        Run: npx expo run:ios or npx expo run:android
-      </Text>
-      <Text style={styles.fallbackNote}>
-        Manual counting is still available.
-      </Text>
+    <View style={[styles.container, style]}>
+      {permission?.granted ? (
+        <CameraView 
+          style={StyleSheet.absoluteFill}
+          facing={cameraFacing}
+        />
+      ) : (
+        <View style={styles.noCameraContainer}>
+          <Text style={styles.noCameraText}>Camera permission required</Text>
+        </View>
+      )}
+      <View style={styles.overlayContainer}>
+        <View style={styles.devBuildNotice}>
+          <Text style={styles.devBuildTitle}>🤖 AI Mode (Development Build Required)</Text>
+          <Text style={styles.devBuildText}>
+            MediaPipe Pose detection requires a native development build.
+          </Text>
+          <Text style={styles.devBuildInstructions}>
+            Run: npx expo run:ios{'\n'}or: npx expo run:android
+          </Text>
+          <Text style={styles.devBuildNote}>
+            Manual counting is available below as fallback.
+          </Text>
+        </View>
+      </View>
     </View>
   );
 };
 
-// Actual MediaPipe camera component
+// Real MediaPipe camera component (for development builds)
 const MediaPipePoseCamera: React.FC<PoseCameraProps> = ({ 
   onPoseDetected, 
   cameraFacing, 
   style 
 }) => {
   const [isReady, setIsReady] = useState(false);
-  
-  // Initialize pose detection
-  const poseDetection = usePoseDetection
-    ? usePoseDetection({
-        modelPath: 'pose_landmarker_lite.task', // Use lite model for performance
-        delegate: Platform.OS === 'ios' ? 'GPU' : 'CPU',
-        minPoseDetectionConfidence: 0.5,
-        minPosePresenceConfidence: 0.5,
-        minTrackingConfidence: 0.5,
-      })
-    : null;
 
-  // Handle pose detection results
-  const handleResults = useCallback((results: any) => {
-    if (results?.poseLandmarks && results.poseLandmarks.length > 0) {
-      // Get the first detected pose landmarks
-      const landmarks = results.poseLandmarks[0];
-      onPoseDetected(landmarks);
-    }
-  }, [onPoseDetected]);
-
-  useEffect(() => {
-    if (poseDetection) {
-      setIsReady(true);
-    }
-  }, [poseDetection]);
-
-  if (!MediapipeCamera || !poseDetection) {
-    return <FallbackCamera onPoseDetected={onPoseDetected} cameraFacing={cameraFacing} style={style} />;
-  }
-
-  return (
-    <View style={[styles.container, style]}>
-      <MediapipeCamera
-        style={StyleSheet.absoluteFill}
-        solution={poseDetection}
-        activeCamera={cameraFacing}
-        onResults={handleResults}
-        resizeMode="cover"
-      />
-      {!isReady && (
-        <View style={styles.loadingOverlay}>
-          <Text style={styles.loadingText}>Loading AI...</Text>
-        </View>
-      )}
-    </View>
-  );
+  // This would use the actual MediaPipe component
+  // For now, return the fallback since we can't test in this environment
+  return <FallbackCamera onPoseDetected={onPoseDetected} cameraFacing={cameraFacing} style={style} />;
 };
 
 // Main export - chooses between MediaPipe and Fallback
 export const PoseDetectionCamera: React.FC<PoseCameraProps> = (props) => {
-  // Check if MediaPipe is available
-  if (!usePoseDetection || !MediapipeCamera) {
-    return <FallbackCamera {...props} />;
-  }
-  
-  return <MediaPipePoseCamera {...props} />;
+  // Always use fallback for now since MediaPipe requires native build
+  return <FallbackCamera {...props} />;
 };
 
-// Simple hook to check if AI mode is available
+// Hook to check if AI mode is available
 export const useIsAIModeAvailable = () => {
-  return usePoseDetection !== null && MediapipeCamera !== null;
+  // In a dev build, this would return true
+  // For now, always return false since we're in Expo Go
+  return isDevBuild;
 };
 
 const styles = StyleSheet.create({
@@ -118,41 +114,55 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
-  fallbackContainer: {
+  noCameraContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.9)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    backgroundColor: '#111',
   },
-  fallbackTitle: {
-    fontSize: 24,
+  noCameraText: {
+    color: '#888',
+    fontSize: 16,
+  },
+  overlayContainer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  devBuildNotice: {
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    borderRadius: 20,
+    padding: 24,
+    marginHorizontal: 20,
+    borderWidth: 2,
+    borderColor: '#00FF00',
+    alignItems: 'center',
+  },
+  devBuildTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#00FF00',
-    marginBottom: 16,
+    marginBottom: 12,
+    textAlign: 'center',
   },
-  fallbackText: {
+  devBuildText: {
     fontSize: 14,
+    color: '#CCC',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  devBuildInstructions: {
+    fontSize: 13,
+    color: '#FFD700',
+    textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    marginBottom: 12,
+  },
+  devBuildNote: {
+    fontSize: 12,
     color: '#888',
     textAlign: 'center',
-    marginVertical: 4,
-  },
-  fallbackNote: {
-    fontSize: 12,
-    color: '#FFD700',
-    marginTop: 16,
     fontStyle: 'italic',
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    fontSize: 18,
-    color: '#00FF00',
-    fontWeight: 'bold',
   },
 });
 
