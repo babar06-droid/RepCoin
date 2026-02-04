@@ -25,8 +25,8 @@ const REP_POINTS_KEY = '@rep_points';
 // Calculate image size based on available screen space above buttons
 const BUTTONS_AREA_HEIGHT = 260;
 const AVAILABLE_HEIGHT = height - BUTTONS_AREA_HEIGHT;
-// Use available height as constraint and calculate width proportionally
-const IMAGE_HEIGHT = Math.min(AVAILABLE_HEIGHT, height * 0.68); // Max 68% of screen height
+// Use available height as constraint - slightly smaller to show full content
+const IMAGE_HEIGHT = Math.min(AVAILABLE_HEIGHT, height * 0.62); // 62% of screen height
 const IMAGE_WIDTH = IMAGE_HEIGHT * 0.8; // 4:5 aspect ratio
 
 export default function HomeScreen() {
