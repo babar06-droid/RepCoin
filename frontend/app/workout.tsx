@@ -1104,7 +1104,23 @@ export default function WorkoutScreen() {
               </Animated.View>
             ))}
 
-            {/* Big Tap Button / Auto Mode Controls */}
+            {/* AI Mode Debug Info */}
+            {countMode === 'ai' && (
+              <View style={styles.aiDebugContainer}>
+                <View style={styles.aiDebugBadge}>
+                  <MaterialCommunityIcons name="robot" size={16} color="#00FF00" />
+                  <Text style={styles.aiDebugText}>{poseDebugInfo}</Text>
+                </View>
+                <View style={[
+                  styles.poseStateBadge,
+                  pushupState === 'DOWN' ? styles.poseStateDown : styles.poseStateUp
+                ]}>
+                  <Text style={styles.poseStateText}>{pushupState}</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Big Tap Button / Auto Mode Controls / AI Mode Controls */}
             <View style={styles.bottomSection}>
               {!isCompleted ? (
                 countMode === 'manual' ? (
@@ -1119,7 +1135,7 @@ export default function WorkoutScreen() {
                       <Text style={styles.tapButtonSubtext}>for each rep</Text>
                     </TouchableOpacity>
                   </Animated.View>
-                ) : (
+                ) : countMode === 'auto' ? (
                   // Auto mode - pause/resume button
                   countdown === null && (
                     <TouchableOpacity 
@@ -1131,6 +1147,22 @@ export default function WorkoutScreen() {
                       <Text style={styles.tapButtonSubtext}>{isPaused ? 'Resume' : 'Pause'}</Text>
                     </TouchableOpacity>
                   )
+                ) : (
+                  // AI mode - show info and manual fallback
+                  <View style={styles.aiModeControls}>
+                    <View style={styles.aiStatusContainer}>
+                      <MaterialCommunityIcons name="robot" size={32} color="#00FF00" />
+                      <Text style={styles.aiStatusText}>AI Detecting</Text>
+                      <Text style={styles.aiStatusSubtext}>Goal: {targetReps}</Text>
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.manualFallbackBtn} 
+                      onPress={handleRepCount}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.manualFallbackText}>+1 Manual</Text>
+                    </TouchableOpacity>
+                  </View>
                 )
               ) : (
                 <TouchableOpacity style={styles.finishButton} onPress={endWorkout}>
