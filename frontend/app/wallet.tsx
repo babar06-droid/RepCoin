@@ -144,7 +144,8 @@ export default function WalletScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchWalletData();
+    await loadRepPointsFromStorage();
+    await fetchWalletStats();
     setRefreshing(false);
   };
 
