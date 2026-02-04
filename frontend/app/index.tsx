@@ -208,17 +208,11 @@ Earn crypto while you burn calories! 🔥
 }
 
 const styles = StyleSheet.create({
-  container: {
+  scrollContainer: {
     flex: 1,
-    width: '100%',
-    height: '100%',
   },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  spacer: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
   },
   bottomContent: {
     paddingHorizontal: 24,
@@ -226,6 +220,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.8)',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
+    marginTop: 20,
   },
   startButtonRow: {
     flexDirection: 'row',
