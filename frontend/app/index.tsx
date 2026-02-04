@@ -218,6 +218,10 @@ const styles = StyleSheet.create({
     height: '100%',
     marginTop: 0,
   },
+  heroImageStyle: {
+    resizeMode: 'cover',
+    top: 0,
+  },
   bottomContent: {
     paddingHorizontal: 24,
     paddingTop: 20,
