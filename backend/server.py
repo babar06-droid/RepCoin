@@ -165,6 +165,17 @@ async def root():
     return {"message": "Rep Coin API - Earn While You Burn!"}
 
 
+# Create user endpoint
+@api_router.post("/create-user")
+async def create_user():
+    user_id = str(uuid4())
+    await db.users.insert_one({
+        "_id": user_id,
+        "rep": 0
+    })
+    return {"user_id": user_id}
+
+
 # REP Points endpoints
 @api_router.post("/add_rep", response_model=RepPointsResponse)
 async def add_rep():
