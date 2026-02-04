@@ -42,10 +42,12 @@ export const PoseDetectionCamera: React.FC<PoseCameraProps> = ({
     const setupSensors = async () => {
       // Try Light Sensor first (works great for phone-on-floor)
       const lightAvailable = await LightSensor.isAvailableAsync();
+      console.log('Light sensor available:', lightAvailable);
       
       if (lightAvailable) {
         setSensorType('light');
-        setDebugText('Using Light Sensor');
+        setDebugText('Light Sensor Active!');
+        console.log('Using LIGHT SENSOR for detection');
         
         LightSensor.setUpdateInterval(100);
         
@@ -59,6 +61,7 @@ export const PoseDetectionCamera: React.FC<PoseCameraProps> = ({
             baselineLightRef.current = illuminance;
             maxLightRef.current = illuminance * 1.5;
             minLightRef.current = illuminance * 0.3;
+            console.log('Light baseline set:', illuminance);
           }
           
           // Update min/max for better calibration
@@ -76,7 +79,7 @@ export const PoseDetectionCamera: React.FC<PoseCameraProps> = ({
           setCurrentValue(clamped);
           setIsActive(true);
           
-          setDebugText(`Light: ${illuminance.toFixed(0)} lux → ${(clamped * 100).toFixed(0)}%`);
+          setDebugText(`💡 ${illuminance.toFixed(0)} lux → ${(clamped * 100).toFixed(0)}%`);
           
           // Create landmarks
           const landmarks = createLandmarks(clamped);
