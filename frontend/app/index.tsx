@@ -122,15 +122,22 @@ Earn crypto while you burn calories! 🔥
   };
 
   return (
-    <ImageBackground
-      source={require('../assets/repcoin-hero.png')}
-      style={styles.container}
-      resizeMode="cover"
-    >
-      {/* Dark overlay for better text readability */}
-      <View style={styles.overlay}>
-        {/* Spacer to push content to bottom */}
-        <View style={styles.spacer} />
+    <View style={{ flex: 1, paddingTop: StatusBar.currentHeight || 40, backgroundColor: '#0a0a0a' }}>
+      <ScrollView 
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Hero Image */}
+        <Image
+          source={require('../assets/repcoin-hero.png')}
+          style={{
+            width: '100%',
+            height: 320,
+            marginTop: 10,
+          }}
+          resizeMode="contain"
+        />
 
         {/* Bottom content area */}
         <View style={[styles.bottomContent, { paddingBottom: insets.bottom + 20 }]}>
@@ -195,8 +202,8 @@ Earn crypto while you burn calories! 🔥
             <Ionicons name="globe-outline" size={18} color="#FFF" />
           </TouchableOpacity>
         </View>
-      </View>
-    </ImageBackground>
+      </ScrollView>
+    </View>
   );
 }
 
