@@ -242,6 +242,36 @@ export default function WorkoutScreen() {
     }
   };
 
+  const saveVideoToGallery = async () => {
+    if (!recordedVideoUri) return;
+
+    try {
+      // Request media library permission if needed
+      if (!mediaLibraryPermission?.granted) {
+        const { granted } = await requestMediaLibraryPermission();
+        if (!granted) {
+          Alert.alert('Permission Required', 'Please allow access to save the video to your gallery');
+          return;
+        }
+      }
+
+      // Save to media library
+      await MediaLibrary.createAssetAsync(recordedVideoUri);
+      
+      Alert.alert(
+        '✅ Video Saved!', 
+        'Your workout video has been saved to your phone gallery.',
+        [{ text: 'OK', onPress: () => {
+          setShowShareModal(false);
+          setRecordedVideoUri(null);
+        }}]
+      );
+    } catch (error) {
+      console.log('Save to gallery error:', error);
+      Alert.alert('Error', 'Could not save the video to gallery');
+    }
+  };
+
   const discardVideo = () => {
     setShowShareModal(false);
     setRecordedVideoUri(null);
