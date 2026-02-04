@@ -436,14 +436,14 @@ export default function WorkoutScreen() {
     }
   };
 
-  // Handle pose detection results from MediaPipe for AI pushup counting
+  // Handle pose detection results for AI pushup counting
   const handlePoseDetection = useCallback((landmarks: any[]) => {
-    if (!landmarks || landmarks.length < 13) {
+    if (!landmarks || landmarks.length < 7) {
       setPoseDebugInfo('No pose detected');
       return;
     }
 
-    // Get left and right shoulder landmarks (indices 11 and 12)
+    // Get left and right shoulder landmarks (indices 5 and 6 for MoveNet/Motion)
     const leftShoulder = landmarks[LEFT_SHOULDER_INDEX];
     const rightShoulder = landmarks[RIGHT_SHOULDER_INDEX];
 
@@ -452,7 +452,8 @@ export default function WorkoutScreen() {
       return;
     }
 
-    // Calculate average shoulder Y position (normalized 0-1, higher = lower on screen)
+    // Calculate average shoulder Y position (normalized 0-1)
+    // Higher Y = DOWN position, Lower Y = UP position
     const avgY = (leftShoulder.y + rightShoulder.y) / 2;
     setAvgShoulderY(avgY);
 
@@ -463,21 +464,23 @@ export default function WorkoutScreen() {
       // Moved from UP to DOWN position
       pushupStateRef.current = 'DOWN';
       setPushupState('DOWN');
-      setPoseDebugInfo(`DOWN (Y: ${avgY.toFixed(2)})`);
+      setPoseDebugInfo(`⬇️ DOWN (${avgY.toFixed(2)})`);
+      console.log('State changed to DOWN, Y:', avgY);
     } else if (currentState === 'DOWN' && avgY < UP_THRESHOLD) {
       // Moved from DOWN to UP position - count a rep!
       pushupStateRef.current = 'UP';
       setPushupState('UP');
       repCountRef.current += 1;
-      setPoseDebugInfo(`UP - Rep ${repCountRef.current}! (Y: ${avgY.toFixed(2)})`);
+      setPoseDebugInfo(`⬆️ REP ${repCountRef.current}! (${avgY.toFixed(2)})`);
+      console.log('REP COUNTED! Total:', repCountRef.current, 'Y:', avgY);
       
       // Trigger the rep count handler
       handleAIRepCount();
     } else {
       // In transition or holding position
-      setPoseDebugInfo(`${currentState} (Y: ${avgY.toFixed(2)})`);
+      setPoseDebugInfo(`${currentState === 'UP' ? '⬆️' : '⬇️'} ${currentState} (${avgY.toFixed(2)})`);
     }
-  }, []);
+  }, [handleAIRepCount]);
 
   // Handle rep count from AI detection
   const handleAIRepCount = useCallback(() => {
