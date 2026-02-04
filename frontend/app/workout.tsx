@@ -489,7 +489,10 @@ export default function WorkoutScreen() {
           setCoinsEarned((prev) => prev + 2);
         }
 
-        // Save rep to backend
+        // IMPORTANT: Save REP points to AsyncStorage immediately
+        incrementAndSaveRepPoints();
+
+        // Also sync to backend (optional, for stats)
         fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/reps`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
