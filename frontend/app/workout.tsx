@@ -1146,6 +1146,23 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000',
   },
+  saveGalleryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#4CAF50',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 30,
+    width: '100%',
+    marginBottom: 12,
+  },
+  saveGalleryBtnText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
   discardBtn: {
     paddingVertical: 12,
   },
