@@ -27,7 +27,6 @@ import * as Sharing from 'expo-sharing';
 const { width, height } = Dimensions.get('window');
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 const REP_POINTS_KEY = '@rep_points';
-const USER_ID_KEY = '@user_id';
 
 type ExerciseType = 'pushup' | 'situp';
 type CountDirection = 'up' | 'down';
