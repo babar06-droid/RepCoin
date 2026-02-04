@@ -77,6 +77,7 @@ export default function WorkoutScreen() {
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const [cameraFacing, setCameraFacing] = useState<'front' | 'back'>('front');
+  const isAIModeAvailable = useIsAIModeAvailable();
 
   const [exerciseType, setExerciseType] = useState<ExerciseType>('pushup');
   const [countDirection, setCountDirection] = useState<CountDirection>('up');
