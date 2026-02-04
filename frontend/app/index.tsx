@@ -208,12 +208,14 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
+    paddingTop: 0,
   },
   heroImage: {
     width: '100%',
     height: '100%',
+    marginTop: 0,
   },
   bottomContent: {
     paddingHorizontal: 24,
