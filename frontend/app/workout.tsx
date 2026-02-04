@@ -346,6 +346,18 @@ export default function WorkoutScreen() {
     }
   };
 
+  // Save REP points to AsyncStorage
+  const incrementAndSaveRepPoints = async () => {
+    try {
+      const storedRep = await AsyncStorage.getItem(REP_POINTS_KEY);
+      const currentPoints = storedRep ? parseInt(storedRep, 10) : 0;
+      const newPoints = currentPoints + 1;
+      await AsyncStorage.setItem(REP_POINTS_KEY, newPoints.toString());
+    } catch (error) {
+      console.log('Save rep points error:', error);
+    }
+  };
+
   const handleRepCount = useCallback(() => {
     if (isCompleted) return;
 
@@ -405,17 +417,14 @@ export default function WorkoutScreen() {
       setCoinsEarned((prev) => prev + 2); // Bonus coins for completion
     }
 
-    // Save rep to backend (both old endpoint and new REP points endpoint)
+    // IMPORTANT: Save REP points to AsyncStorage immediately
+    incrementAndSaveRepPoints();
+
+    // Also sync to backend (optional, for stats)
     fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/reps`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ exercise_type: exerciseType, coins_earned: totalRepsCompleted % 5 === 0 ? 1 : 0 }),
-    }).catch(() => {});
-    
-    // Also increment REP points
-    fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/add_rep`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
     }).catch(() => {});
 
   }, [currentRep, countDirection, targetReps, exerciseType, isCompleted]);
