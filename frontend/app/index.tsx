@@ -150,7 +150,7 @@ Earn crypto while you burn calories! 🔥
           {/* REP Counter on right side */}
           <TouchableOpacity style={styles.repCounter} onPress={() => router.push('/wallet')}>
             <View style={styles.repCounterContent}>
-              <Text style={styles.repCounterText}>🔥 REP: {repPoints}</Text>
+              <Text style={styles.repCounterText}>🔥 REP: {repPoints ?? 0}</Text>
               <Text style={styles.repSubtext}>Earn REP with every rep</Text>
             </View>
           </TouchableOpacity>
