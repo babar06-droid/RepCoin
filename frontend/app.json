@@ -38,14 +38,6 @@
           "resizeMode": "contain",
           "backgroundColor": "#000"
         }
-      ],
-      [
-        "react-native-vision-camera",
-        {
-          "cameraPermissionText": "Rep Coin needs camera access for AI pose detection",
-          "enableMicrophonePermission": true,
-          "microphonePermissionText": "Rep Coin needs microphone for workout videos"
-        }
       ]
     ],
     "experiments": {
