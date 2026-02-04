@@ -87,21 +87,36 @@ export default function WalletScreen() {
   // Auto-refresh REP points when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      fetchWalletData();
+      loadRepPointsFromStorage();
+      fetchWalletStats();
     }, [])
   );
 
-  const fetchWalletData = async () => {
+  const loadRepPointsFromStorage = async () => {
     try {
-      // Fetch REP points from main wallet endpoint
-      const repRes = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/wallet`);
-      if (repRes.ok) {
-        const repData = await repRes.json();
-        if (repData.rep_points !== undefined) {
-          setRepPoints(repData.rep_points);
-        }
+      const storedRep = await AsyncStorage.getItem(REP_POINTS_KEY);
+      if (storedRep !== null) {
+        setRepPoints(parseInt(storedRep, 10));
+      } else {
+        setRepPoints(0);
       }
+    } catch (error) {
+      console.log('Load rep points error:', error);
+      setRepPoints(0);
+    }
+  };
 
+  const saveRepPointsToStorage = async (points: number) => {
+    try {
+      await AsyncStorage.setItem(REP_POINTS_KEY, points.toString());
+      setRepPoints(points);
+    } catch (error) {
+      console.log('Save rep points error:', error);
+    }
+  };
+
+  const fetchWalletStats = async () => {
+    try {
       // Fetch workout stats from stats endpoint
       const statsRes = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/wallet/stats`);
       if (statsRes.ok) {
