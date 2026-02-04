@@ -193,7 +193,7 @@ Earn crypto while you burn calories! 🔥
           activeOpacity={0.8}
         >
           <Ionicons name="share-social" size={22} color="#FFF" />
-          <Text style={styles.shareButtonText}>Share Challenge to the World</Text>
+          <Text style={styles.shareButtonText}>Share Challenge the World</Text>
           <Ionicons name="globe-outline" size={18} color="#FFF" />
         </TouchableOpacity>
       </View>
