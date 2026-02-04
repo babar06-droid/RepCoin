@@ -64,9 +64,11 @@ export default function HomeScreen() {
 
   const loadRepPointsFromStorage = async () => {
     try {
-      const storedRep = await AsyncStorage.getItem(REP_POINTS_KEY);
-      if (storedRep !== null) {
-        setRepPoints(parseInt(storedRep, 10));
+      const userId = await AsyncStorage.getItem("userId");
+      if (userId) {
+        const wallet = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/wallet/${userId}`);
+        const data = await wallet.json();
+        setRepPoints(data.rep);
       } else {
         setRepPoints(0);
       }
