@@ -22,12 +22,8 @@ const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 const REP_POINTS_KEY = '@rep_points';
 
 // Image aspect ratio is 4:5 (1000x1250) - portrait orientation
-// Calculate image size based on available screen space above buttons
-const BUTTONS_AREA_HEIGHT = 260;
-const AVAILABLE_HEIGHT = height - BUTTONS_AREA_HEIGHT;
-// Use available height as constraint - slightly smaller to show full content
-const IMAGE_HEIGHT = Math.min(AVAILABLE_HEIGHT, height * 0.62); // 62% of screen height
-const IMAGE_WIDTH = IMAGE_HEIGHT * 0.8; // 4:5 aspect ratio
+// To get height from width: height = width * (1250/1000) = width * 1.25
+const IMAGE_HEIGHT_MULTIPLIER = 1.25;
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -135,10 +131,11 @@ Earn crypto while you burn calories! 🔥
 
   return (
     <View style={styles.container}>
-      {/* Background Image - scaled to fit screen */}
+      {/* Background Image - stretched to show from top */}
       <Image
         source={require('../assets/repcoin-hero.png')}
         style={styles.backgroundImage}
+        resizeMode="stretch"
       />
       
       {/* Dark gradient overlay at bottom for readability */}
@@ -219,11 +216,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a0a0a',
   },
+  imageContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'flex-start', // Align image to top
+  },
   backgroundImage: {
-    width: IMAGE_WIDTH,
-    height: IMAGE_HEIGHT,
-    alignSelf: 'center',
-    marginTop: 0,
+    width: width,
+    height: width * IMAGE_HEIGHT_MULTIPLIER, // Actual image height based on aspect ratio
   },
   gradientOverlay: {
     position: 'absolute',
