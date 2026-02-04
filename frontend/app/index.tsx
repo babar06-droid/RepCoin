@@ -130,7 +130,8 @@ Earn crypto while you burn calories! 🔥
         <ImageBackground
           source={require('../assets/repcoin-hero.png')}
           style={styles.heroImage}
-          resizeMode="contain"
+          imageStyle={styles.heroImageStyle}
+          resizeMode="cover"
         />
       </View>
       
