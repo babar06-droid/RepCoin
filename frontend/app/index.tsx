@@ -125,83 +125,79 @@ Earn crypto while you burn calories! 🔥
   };
 
   return (
-    <View style={styles.wrapper}>
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Image
-          source={require('../assets/repcoin-hero.png')}
-          style={styles.heroImage}
-          resizeMode="contain"
-        />
-        
-        {/* Bottom content area */}
-        <View style={[styles.bottomContent, { paddingBottom: insets.bottom + 20 }]}>
-          {/* Start Workout Button with REP Counter */}
-          <View style={styles.startButtonRow}>
-            <TouchableOpacity
-              style={styles.startButton}
-              onPress={() => router.push('/workout')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="fitness" size={28} color="#000" />
-              <Text style={styles.startButtonText}>START WORKOUT</Text>
-            </TouchableOpacity>
-            
-            {/* REP Counter on right side */}
-            <TouchableOpacity style={styles.repCounter} onPress={() => router.push('/wallet')}>
-              <View style={styles.repCounterContent}>
-                <Text style={styles.repCounterText}>🔥 REP: {repPoints ?? 0}</Text>
-                <Text style={styles.repSubtext}>Earn REP with every rep</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          {/* Secondary buttons row */}
-          <View style={styles.secondaryButtons}>
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={() => router.push('/wallet')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="wallet-outline" size={22} color="#FFD700" />
-              <Text style={styles.secondaryButtonText}>Wallet</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={() => router.push('/voice-studio')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="mic-outline" size={22} color="#FF6B6B" />
-              <Text style={[styles.secondaryButtonText, { color: '#FF6B6B' }]}>Coach</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.secondaryButton, styles.glowingChallengeButton]}
-              onPress={() => router.push('/challenge')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="trophy" size={22} color="#FFD700" />
-              <Text style={[styles.secondaryButtonText, { color: '#FFD700' }]}>Challenge</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Share Challenge Button */}
+    <ImageBackground
+      source={require('../assets/repcoin-hero.png')}
+      style={styles.container}
+      imageStyle={styles.backgroundImage}
+      resizeMode="cover"
+    >
+      {/* Dark gradient overlay at bottom for readability */}
+      <View style={styles.gradientOverlay} />
+      
+      {/* Bottom content area */}
+      <View style={[styles.bottomContent, { paddingBottom: insets.bottom + 20 }]}>
+        {/* Start Workout Button with REP Counter */}
+        <View style={styles.startButtonRow}>
           <TouchableOpacity
-            style={styles.shareButton}
-            onPress={shareChallenge}
+            style={styles.startButton}
+            onPress={() => router.push('/workout')}
             activeOpacity={0.8}
           >
-            <Ionicons name="share-social" size={22} color="#FFF" />
-            <Text style={styles.shareButtonText}>Share Challenge the World</Text>
-            <Ionicons name="globe-outline" size={18} color="#FFF" />
+            <Ionicons name="fitness" size={28} color="#000" />
+            <Text style={styles.startButtonText}>START WORKOUT</Text>
+          </TouchableOpacity>
+          
+          {/* REP Counter on right side */}
+          <TouchableOpacity style={styles.repCounter} onPress={() => router.push('/wallet')}>
+            <View style={styles.repCounterContent}>
+              <Text style={styles.repCounterText}>🔥 REP: {repPoints ?? 0}</Text>
+              <Text style={styles.repSubtext}>Earn REP with every rep</Text>
+            </View>
           </TouchableOpacity>
         </View>
-      </ScrollView>
-    </View>
+
+        {/* Secondary buttons row */}
+        <View style={styles.secondaryButtons}>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.push('/wallet')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="wallet-outline" size={22} color="#FFD700" />
+            <Text style={styles.secondaryButtonText}>Wallet</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.push('/voice-studio')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="mic-outline" size={22} color="#FF6B6B" />
+            <Text style={[styles.secondaryButtonText, { color: '#FF6B6B' }]}>Coach</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.secondaryButton, styles.glowingChallengeButton]}
+            onPress={() => router.push('/challenge')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="trophy" size={22} color="#FFD700" />
+            <Text style={[styles.secondaryButtonText, { color: '#FFD700' }]}>Challenge</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Share Challenge Button */}
+        <TouchableOpacity
+          style={styles.shareButton}
+          onPress={shareChallenge}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="share-social" size={22} color="#FFF" />
+          <Text style={styles.shareButtonText}>Share Challenge the World</Text>
+          <Ionicons name="globe-outline" size={18} color="#FFF" />
+        </TouchableOpacity>
+      </View>
+    </ImageBackground>
   );
 }
 
