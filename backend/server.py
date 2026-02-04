@@ -8,6 +8,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import uuid
+from uuid import uuid4
 from datetime import datetime
 import base64
 from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
