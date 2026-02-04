@@ -131,13 +131,12 @@ Earn crypto while you burn calories! 🔥
 
   return (
     <View style={styles.container}>
-      {/* Background Image Container - aligns image to top */}
-      <View style={styles.imageContainer}>
-        <Image
-          source={require('../assets/repcoin-hero.png')}
-          style={styles.backgroundImage}
-        />
-      </View>
+      {/* Background Image - stretched to show from top */}
+      <Image
+        source={require('../assets/repcoin-hero.png')}
+        style={styles.backgroundImage}
+        resizeMode="stretch"
+      />
       
       {/* Dark gradient overlay at bottom for readability */}
       <LinearGradient
