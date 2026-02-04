@@ -20,7 +20,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-const REP_POINTS_KEY = '@rep_points';
 
 export default function HomeScreen() {
   const router = useRouter();
