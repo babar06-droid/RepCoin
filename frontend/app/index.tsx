@@ -216,20 +216,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a0a0a',
   },
   backgroundImage: {
-    resizeMode: 'contain',
-    // Position image at the top
+    position: 'absolute',
     top: 0,
-    backgroundColor: '#0a0a0a',
+    left: 0,
+    width: width,
+    height: width / IMAGE_ASPECT_RATIO, // Maintain aspect ratio - shows full width
   },
   gradientOverlay: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: '45%',
-    backgroundColor: 'transparent',
-    // Creates a gradient effect using linear gradient simulation
-    backgroundImage: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 50%, transparent 100%)',
+    height: '50%',
   },
   bottomContent: {
     position: 'absolute',
