@@ -124,19 +124,17 @@ export default function WorkoutScreen() {
 
   const loadOrGenerateUserId = async () => {
     try {
-      let storedUserId = await AsyncStorage.getItem(USER_ID_KEY);
+      let userId = await AsyncStorage.getItem("userId");
       
-      if (!storedUserId) {
-        // Create user via backend API
+      if (!userId) {
         const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/create-user`, { method: "POST" });
         const data = await res.json();
-        storedUserId = data.user_id;
-        await AsyncStorage.setItem(USER_ID_KEY, storedUserId);
+        await AsyncStorage.setItem("userId", data.user_id);
+        userId = data.user_id;
       }
       
-      setUserId(storedUserId);
-      userIdRef.current = storedUserId;
-      console.log('User ID loaded/created:', storedUserId);
+      setUserId(userId);
+      userIdRef.current = userId;
     } catch (error) {
       console.log('Load user ID error:', error);
     }
