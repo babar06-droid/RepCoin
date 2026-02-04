@@ -176,6 +176,17 @@ async def create_user():
     return {"user_id": user_id}
 
 
+# Add rep to user endpoint
+@api_router.post("/add-rep/{user_id}")
+async def add_rep(user_id: str, amount: int = 1):
+    await db.users.update_one(
+        {"_id": user_id},
+        {"$inc": {"rep": amount}}
+    )
+    user = await db.users.find_one({"_id": user_id})
+    return {"rep": user["rep"]}
+
+
 # REP Points endpoints
 @api_router.post("/add_rep", response_model=RepPointsResponse)
 async def add_rep():
