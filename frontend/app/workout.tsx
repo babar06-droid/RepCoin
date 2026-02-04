@@ -30,7 +30,16 @@ const REP_POINTS_KEY = '@rep_points';
 
 type ExerciseType = 'pushup' | 'situp';
 type CountDirection = 'up' | 'down';
-type CountMode = 'manual' | 'auto';
+type CountMode = 'manual' | 'auto' | 'ai';
+type PushupState = 'UP' | 'DOWN';
+
+// MediaPipe Pose landmark indices for shoulders
+const LEFT_SHOULDER_INDEX = 11;
+const RIGHT_SHOULDER_INDEX = 12;
+
+// Thresholds for pushup detection (normalized Y values 0-1, higher = lower on screen)
+const DOWN_THRESHOLD = 0.55; // When shoulders go below this, you're in DOWN position
+const UP_THRESHOLD = 0.45;   // When shoulders rise above this from DOWN, count a rep
 
 interface CoinAnimation {
   id: number;
