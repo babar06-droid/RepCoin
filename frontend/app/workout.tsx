@@ -433,6 +433,107 @@ export default function WorkoutScreen() {
     }
   };
 
+  // Handle pose detection results from MediaPipe for AI pushup counting
+  const handlePoseDetection = useCallback((landmarks: any[]) => {
+    if (!landmarks || landmarks.length < 13) {
+      setPoseDebugInfo('No pose detected');
+      return;
+    }
+
+    // Get left and right shoulder landmarks (indices 11 and 12)
+    const leftShoulder = landmarks[LEFT_SHOULDER_INDEX];
+    const rightShoulder = landmarks[RIGHT_SHOULDER_INDEX];
+
+    if (!leftShoulder || !rightShoulder) {
+      setPoseDebugInfo('Shoulders not visible');
+      return;
+    }
+
+    // Calculate average shoulder Y position (normalized 0-1, higher = lower on screen)
+    const avgY = (leftShoulder.y + rightShoulder.y) / 2;
+    setAvgShoulderY(avgY);
+
+    const currentState = pushupStateRef.current;
+
+    // State machine for pushup detection
+    if (currentState === 'UP' && avgY > DOWN_THRESHOLD) {
+      // Moved from UP to DOWN position
+      pushupStateRef.current = 'DOWN';
+      setPushupState('DOWN');
+      setPoseDebugInfo(`DOWN (Y: ${avgY.toFixed(2)})`);
+    } else if (currentState === 'DOWN' && avgY < UP_THRESHOLD) {
+      // Moved from DOWN to UP position - count a rep!
+      pushupStateRef.current = 'UP';
+      setPushupState('UP');
+      repCountRef.current += 1;
+      setPoseDebugInfo(`UP - Rep ${repCountRef.current}! (Y: ${avgY.toFixed(2)})`);
+      
+      // Trigger the rep count handler
+      handleAIRepCount();
+    } else {
+      // In transition or holding position
+      setPoseDebugInfo(`${currentState} (Y: ${avgY.toFixed(2)})`);
+    }
+  }, []);
+
+  // Handle rep count from AI detection
+  const handleAIRepCount = useCallback(() => {
+    if (isCompleted) return;
+
+    animateButton();
+    animateRepCounter();
+    Vibration.vibrate(50);
+
+    const target = parseInt(targetReps) || 0;
+    
+    setCurrentRep((prevRep) => {
+      let newRep: number;
+      let totalRepsCompleted: number;
+
+      if (countDirection === 'up') {
+        newRep = prevRep + 1;
+        totalRepsCompleted = newRep;
+      } else {
+        newRep = prevRep - 1;
+        totalRepsCompleted = target - newRep;
+      }
+
+      // Update session stats
+      setSessionStats((prev) => ({
+        ...prev,
+        pushups: prev.pushups + 1,
+      }));
+
+      // Every 5 reps - coin sound and animation
+      if (totalRepsCompleted > 0 && totalRepsCompleted % 5 === 0) {
+        playCoinSound();
+        animateCoin();
+        setCoinsEarned((prev) => prev + 1);
+      }
+
+      // Every 10 reps - verbal motivation
+      if (totalRepsCompleted > 0 && totalRepsCompleted % 10 === 0) {
+        const randomPhrase = MOTIVATION_PHRASES[Math.floor(Math.random() * MOTIVATION_PHRASES.length)];
+        speakMotivation(randomPhrase);
+      }
+
+      // Check if workout is complete (target is a goal, not a limit for AI mode)
+      // AI mode doesn't auto-complete, user decides when done
+
+      // Save REP points
+      incrementAndSaveRepPoints();
+
+      // Sync to backend
+      fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/reps`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ exercise_type: 'pushup', coins_earned: totalRepsCompleted % 5 === 0 ? 1 : 0 }),
+      }).catch(() => {});
+
+      return newRep;
+    });
+  }, [countDirection, targetReps, isCompleted]);
+
   const handleRepCount = useCallback(() => {
     if (isCompleted) return;
 
