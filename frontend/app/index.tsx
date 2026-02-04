@@ -22,10 +22,12 @@ const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 const REP_POINTS_KEY = '@rep_points';
 
 // Image aspect ratio is 4:5 (1000x1250) - portrait orientation
-// Scale factor to fit image properly on screen
-const IMAGE_SCALE = 0.75; // 75% of screen width for good balance
-const IMAGE_WIDTH = width * IMAGE_SCALE;
-const IMAGE_HEIGHT = IMAGE_WIDTH * 1.25; // Maintain 4:5 aspect ratio
+// Calculate image size to fit above the buttons area (~280px for buttons)
+const BUTTONS_AREA_HEIGHT = 280;
+const AVAILABLE_HEIGHT = height - BUTTONS_AREA_HEIGHT;
+// Use available height and calculate width to maintain aspect ratio
+const IMAGE_HEIGHT = AVAILABLE_HEIGHT;
+const IMAGE_WIDTH = IMAGE_HEIGHT * 0.8; // 4:5 aspect ratio means width = height * 0.8
 
 export default function HomeScreen() {
   const router = useRouter();
