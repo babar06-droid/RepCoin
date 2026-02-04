@@ -210,7 +210,7 @@ export default function WalletScreen() {
 
           <Text style={styles.balanceLabel}>Total Balance</Text>
           <Text style={styles.balanceAmount}>
-            {repPoints.toLocaleString()}
+            {(repPoints ?? 0).toLocaleString()}
           </Text>
           <Text style={styles.currencyName}>REP POINTS</Text>
 
@@ -219,19 +219,21 @@ export default function WalletScreen() {
             style={styles.addRepButton}
             onPress={async () => {
               try {
-                const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/add_rep`, {
+                // Increment locally first
+                const newPoints = (repPoints ?? 0) + 1;
+                await saveRepPointsToStorage(newPoints);
+                
+                // Animate coin
+                Animated.sequence([
+                  Animated.timing(coinScale, { toValue: 1.2, duration: 100, useNativeDriver: true }),
+                  Animated.timing(coinScale, { toValue: 1, duration: 100, useNativeDriver: true }),
+                ]).start();
+                
+                // Also sync to backend (optional, for stats)
+                fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/add_rep`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                });
-                if (res.ok) {
-                  const data = await res.json();
-                  setRepPoints(data.rep_points);
-                  // Animate coin
-                  Animated.sequence([
-                    Animated.timing(coinScale, { toValue: 1.2, duration: 100, useNativeDriver: true }),
-                    Animated.timing(coinScale, { toValue: 1, duration: 100, useNativeDriver: true }),
-                  ]).start();
-                }
+                }).catch(() => {});
               } catch (error) {
                 console.log('Add rep error:', error);
               }
