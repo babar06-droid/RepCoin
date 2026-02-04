@@ -46,8 +46,7 @@
           "enableMicrophonePermission": true,
           "microphonePermissionText": "Rep Coin needs microphone for workout videos"
         }
-      ],
-      "react-native-mediapipe"
+      ]
     ],
     "experiments": {
       "typedRoutes": true
