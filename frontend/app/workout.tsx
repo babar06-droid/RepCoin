@@ -842,26 +842,56 @@ export default function WorkoutScreen() {
 
           {/* Count Mode */}
           <Text style={styles.sectionLabel}>Count Mode</Text>
-          <View style={styles.directionSelector}>
+          <View style={styles.countModeSelector}>
             <TouchableOpacity
-              style={[styles.directionBtn, countMode === 'manual' && styles.directionBtnActive]}
+              style={[styles.countModeBtn, countMode === 'manual' && styles.directionBtnActive]}
               onPress={() => setCountMode('manual')}
             >
               <Ionicons name="hand-left" size={24} color={countMode === 'manual' ? '#000' : '#FFF'} />
-              <Text style={[styles.directionBtnText, countMode === 'manual' && styles.directionBtnTextActive]}>
-                Manual{'\n'}Tap to count
+              <Text style={[styles.countModeBtnText, countMode === 'manual' && styles.directionBtnTextActive]}>
+                Manual
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.directionBtn, countMode === 'auto' && styles.autoModeActive]}
+              style={[styles.countModeBtn, countMode === 'auto' && styles.autoModeActive]}
               onPress={() => setCountMode('auto')}
             >
               <Ionicons name="timer" size={24} color={countMode === 'auto' ? '#000' : '#FFF'} />
-              <Text style={[styles.directionBtnText, countMode === 'auto' && styles.directionBtnTextActive]}>
-                Auto{'\n'}Timed counter
+              <Text style={[styles.countModeBtnText, countMode === 'auto' && styles.directionBtnTextActive]}>
+                Auto
               </Text>
             </TouchableOpacity>
+            {exerciseType === 'pushup' && (
+              <TouchableOpacity
+                style={[styles.countModeBtn, countMode === 'ai' && styles.aiModeActive]}
+                onPress={() => setCountMode('ai')}
+              >
+                <MaterialCommunityIcons name="robot" size={24} color={countMode === 'ai' ? '#000' : '#FFF'} />
+                <Text style={[styles.countModeBtnText, countMode === 'ai' && styles.directionBtnTextActive]}>
+                  AI 🔥
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
+
+          {/* AI Mode Info (only shown in AI mode) */}
+          {countMode === 'ai' && (
+            <View style={styles.aiModeInfo}>
+              <Text style={styles.aiModeInfoTitle}>🤖 AI Pose Detection</Text>
+              <Text style={styles.aiModeInfoText}>
+                Uses MediaPipe to detect your pushups automatically!
+              </Text>
+              <Text style={styles.aiModeInfoText}>
+                • Position phone to see your shoulders
+              </Text>
+              <Text style={styles.aiModeInfoText}>
+                • Reps count when you go DOWN then UP
+              </Text>
+              <Text style={styles.aiModeInfoNote}>
+                ⚠️ Requires development build (not Expo Go)
+              </Text>
+            </View>
+          )}
 
           {/* Auto Interval (only shown in auto mode) */}
           {countMode === 'auto' && (
