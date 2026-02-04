@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { Accelerometer } from 'expo-sensors';
+import { LightSensor, Accelerometer } from 'expo-sensors';
 
 interface PoseCameraProps {
   onPoseDetected: (landmarks: any[]) => void;
@@ -16,10 +16,16 @@ export const PoseDetectionCamera: React.FC<PoseCameraProps> = ({
 }) => {
   const [permission, requestPermission] = useCameraPermissions();
   const [isActive, setIsActive] = useState(false);
-  const [currentY, setCurrentY] = useState(0.5);
-  const [debugText, setDebugText] = useState('Starting...');
+  const [sensorType, setSensorType] = useState<'light' | 'motion'>('light');
+  const [currentValue, setCurrentValue] = useState(0.5);
+  const [debugText, setDebugText] = useState('Initializing...');
+  const [rawValue, setRawValue] = useState(0);
   
-  const smoothedYRef = useRef(0.5);
+  // For light sensor calibration
+  const baselineLightRef = useRef<number | null>(null);
+  const maxLightRef = useRef<number>(1000);
+  const minLightRef = useRef<number>(0);
+  
   const subscriptionRef = useRef<any>(null);
 
   // Request camera permission
@@ -29,65 +35,78 @@ export const PoseDetectionCamera: React.FC<PoseCameraProps> = ({
     }
   }, [permission]);
 
-  // Setup accelerometer for motion detection
+  // Setup sensors
   useEffect(() => {
     let isMounted = true;
 
-    const setupAccelerometer = async () => {
-      try {
-        // Check if accelerometer is available
-        const isAvailable = await Accelerometer.isAvailableAsync();
-        if (!isAvailable) {
-          setDebugText('Accelerometer not available');
-          return;
-        }
-
-        // Set fast update interval (50ms = 20 updates per second)
-        Accelerometer.setUpdateInterval(50);
+    const setupSensors = async () => {
+      // Try Light Sensor first (works great for phone-on-floor)
+      const lightAvailable = await LightSensor.isAvailableAsync();
+      
+      if (lightAvailable) {
+        setSensorType('light');
+        setDebugText('Using Light Sensor');
+        
+        LightSensor.setUpdateInterval(100);
+        
+        subscriptionRef.current = LightSensor.addListener(({ illuminance }) => {
+          if (!isMounted) return;
+          
+          setRawValue(illuminance);
+          
+          // Calibrate baseline on first reading
+          if (baselineLightRef.current === null) {
+            baselineLightRef.current = illuminance;
+            maxLightRef.current = illuminance * 1.5;
+            minLightRef.current = illuminance * 0.3;
+          }
+          
+          // Update min/max for better calibration
+          if (illuminance > maxLightRef.current) maxLightRef.current = illuminance;
+          if (illuminance < minLightRef.current && illuminance > 0) minLightRef.current = illuminance;
+          
+          // Normalize to 0-1 (inverted: less light = higher value = DOWN)
+          const range = maxLightRef.current - minLightRef.current;
+          const normalized = range > 0 
+            ? 1 - ((illuminance - minLightRef.current) / range)
+            : 0.5;
+          
+          // Clamp to 0-1
+          const clamped = Math.max(0, Math.min(1, normalized));
+          setCurrentValue(clamped);
+          setIsActive(true);
+          
+          setDebugText(`Light: ${illuminance.toFixed(0)} lux → ${(clamped * 100).toFixed(0)}%`);
+          
+          // Create landmarks
+          const landmarks = createLandmarks(clamped);
+          onPoseDetected(landmarks);
+        });
+      } else {
+        // Fall back to accelerometer (for iOS or if no light sensor)
+        setSensorType('motion');
+        setDebugText('Using Motion (tilt phone)');
+        
+        Accelerometer.setUpdateInterval(100);
         
         subscriptionRef.current = Accelerometer.addListener(({ x, y, z }) => {
           if (!isMounted) return;
           
-          // Use Z axis for up/down detection when phone is flat on floor
-          // Z is ~1 when flat, changes when tilted
-          // We'll use a combination of Y and Z for better detection
-          
-          // Smooth the values
-          const rawValue = z; // Z axis when phone is on floor
-          smoothedYRef.current = smoothedYRef.current * 0.6 + rawValue * 0.4;
-          
-          // Normalize to 0-1 range (Z ranges from -1 to 1)
-          // When flat on back: Z ≈ 1
-          // When tilted/covered during pushup: Z changes
-          const normalizedY = (smoothedYRef.current + 1) / 2;
-          
-          setCurrentY(normalizedY);
-          setDebugText(`Z: ${smoothedYRef.current.toFixed(2)} → Y: ${normalizedY.toFixed(2)}`);
+          // Use device tilt for detection
+          const tilt = (z + 1) / 2; // Normalize Z from -1,1 to 0,1
+          setCurrentValue(tilt);
+          setRawValue(z);
           setIsActive(true);
           
-          // Create landmarks with the motion data
-          // Index 5 = left shoulder, Index 6 = right shoulder
-          const landmarks = [];
-          for (let i = 0; i < 7; i++) {
-            landmarks.push({
-              x: 0.5,
-              y: normalizedY,
-              score: 0.95,
-              name: i === 5 ? 'left_shoulder' : i === 6 ? 'right_shoulder' : `point_${i}`,
-            });
-          }
+          setDebugText(`Tilt Z: ${z.toFixed(2)} → ${(tilt * 100).toFixed(0)}%`);
           
+          const landmarks = createLandmarks(tilt);
           onPoseDetected(landmarks);
         });
-        
-        setDebugText('Motion tracking active!');
-      } catch (error) {
-        console.log('Accelerometer error:', error);
-        setDebugText(`Error: ${error}`);
       }
     };
 
-    setupAccelerometer();
+    setupSensors();
 
     return () => {
       isMounted = false;
@@ -98,8 +117,22 @@ export const PoseDetectionCamera: React.FC<PoseCameraProps> = ({
     };
   }, [onPoseDetected]);
 
-  // Calculate indicator position (inverted so UP shows on top)
-  const indicatorPosition = (1 - currentY) * 100;
+  // Helper to create landmarks array
+  const createLandmarks = (normalizedY: number) => {
+    const landmarks = [];
+    for (let i = 0; i < 7; i++) {
+      landmarks.push({
+        x: 0.5,
+        y: normalizedY,
+        score: 0.95,
+        name: i === 5 ? 'left_shoulder' : i === 6 ? 'right_shoulder' : `point_${i}`,
+      });
+    }
+    return landmarks;
+  };
+
+  // Calculate indicator position
+  const indicatorPosition = currentValue * 100;
 
   return (
     <View style={[styles.container, style]}>
@@ -114,46 +147,68 @@ export const PoseDetectionCamera: React.FC<PoseCameraProps> = ({
             <View style={styles.statusBadge}>
               <View style={[styles.statusDot, isActive && styles.statusDotActive]} />
               <Text style={styles.statusText}>
-                {isActive ? '🤖 Motion Tracking' : '⏳ Starting...'}
+                {sensorType === 'light' ? '💡 Light Sensor' : '📱 Motion'}
               </Text>
             </View>
             
-            {/* Motion indicator - vertical bar */}
-            <View style={styles.motionContainer}>
-              <Text style={styles.motionTitle}>Your Position</Text>
-              <View style={styles.motionBarVertical}>
-                <View style={styles.thresholdLineUp} />
-                <View style={styles.thresholdLineDown} />
-                <View 
-                  style={[
-                    styles.motionIndicator,
-                    { 
-                      top: `${indicatorPosition}%`,
-                      backgroundColor: currentY > 0.6 ? '#FF9800' : 
-                                       currentY < 0.4 ? '#4CAF50' : '#FFD700'
-                    }
-                  ]} 
-                />
+            {/* Position indicator */}
+            <View style={styles.meterContainer}>
+              <Text style={styles.meterTitle}>Your Position</Text>
+              
+              <View style={styles.meterRow}>
+                <Text style={styles.posLabel}>UP</Text>
+                <View style={styles.meterBar}>
+                  <View style={styles.thresholdUp} />
+                  <View style={styles.thresholdDown} />
+                  <View 
+                    style={[
+                      styles.meterIndicator,
+                      { 
+                        top: `${indicatorPosition}%`,
+                        backgroundColor: currentValue > 0.6 ? '#FF5722' : 
+                                         currentValue < 0.4 ? '#4CAF50' : '#FFC107'
+                      }
+                    ]} 
+                  />
+                </View>
+                <Text style={styles.posLabel}>DOWN</Text>
               </View>
-              <View style={styles.motionLabelsVertical}>
-                <Text style={styles.labelUp}>⬆️ UP</Text>
-                <Text style={styles.labelDown}>⬇️ DOWN</Text>
-              </View>
+              
               <Text style={styles.debugText}>{debugText}</Text>
             </View>
 
-            {/* Instructions */}
+            {/* Instructions based on sensor type */}
             <View style={styles.instructionsBox}>
-              <Text style={styles.instructionsTitle}>📱 Setup:</Text>
-              <Text style={styles.instructionsText}>
-                • Place phone FLAT on floor, screen UP
-              </Text>
-              <Text style={styles.instructionsText}>
-                • Do pushups over/near the phone
-              </Text>
-              <Text style={styles.instructionsText}>
-                • Motion detected = rep counted!
-              </Text>
+              {sensorType === 'light' ? (
+                <>
+                  <Text style={styles.instructionsTitle}>💡 Light Detection Mode</Text>
+                  <Text style={styles.instructionsText}>
+                    ✓ Phone flat on floor, screen UP
+                  </Text>
+                  <Text style={styles.instructionsText}>
+                    ✓ Position yourself over the phone
+                  </Text>
+                  <Text style={styles.instructionsText}>
+                    ✓ Your body blocks light = DOWN
+                  </Text>
+                  <Text style={styles.instructionsText}>
+                    ✓ Body moves away = UP = REP!
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.instructionsTitle}>📱 Tilt Detection Mode</Text>
+                  <Text style={styles.instructionsText}>
+                    • Hold phone or strap to arm
+                  </Text>
+                  <Text style={styles.instructionsText}>
+                    • Tilt forward = DOWN
+                  </Text>
+                  <Text style={styles.instructionsText}>
+                    • Tilt back = UP = REP!
+                  </Text>
+                </>
+              )}
             </View>
           </View>
         </>
@@ -168,9 +223,7 @@ export const PoseDetectionCamera: React.FC<PoseCameraProps> = ({
 };
 
 // Hook to check if AI mode is available
-export const useIsAIModeAvailable = () => {
-  return true;
-};
+export const useIsAIModeAvailable = () => true;
 
 // Export landmark indices
 export const LEFT_SHOULDER_INDEX = 5;
@@ -189,9 +242,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'center',
-    backgroundColor: 'rgba(0,0,0,0.85)',
+    backgroundColor: 'rgba(0,0,0,0.9)',
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: 25,
     borderWidth: 2,
     borderColor: '#00FF00',
@@ -206,91 +259,87 @@ const styles = StyleSheet.create({
   },
   statusDotActive: {
     backgroundColor: '#00FF00',
-    shadowColor: '#00FF00',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
   },
   statusText: {
     color: '#00FF00',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  motionContainer: {
-    backgroundColor: 'rgba(0,0,0,0.85)',
+  meterContainer: {
+    backgroundColor: 'rgba(0,0,0,0.9)',
     borderRadius: 16,
     padding: 16,
     marginTop: 20,
     alignSelf: 'center',
-    width: 150,
     alignItems: 'center',
   },
-  motionTitle: {
+  meterTitle: {
     color: '#FFF',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  motionBarVertical: {
+  meterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  posLabel: {
+    color: '#888',
+    fontSize: 12,
+    fontWeight: 'bold',
     width: 40,
-    height: 120,
+    textAlign: 'center',
+  },
+  meterBar: {
+    width: 50,
+    height: 150,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 20,
+    borderRadius: 25,
     position: 'relative',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#333',
   },
-  thresholdLineUp: {
+  thresholdUp: {
     position: 'absolute',
     top: '40%',
-    left: 0,
-    right: 0,
-    height: 2,
+    left: 4,
+    right: 4,
+    height: 3,
     backgroundColor: '#4CAF50',
-    opacity: 0.5,
+    borderRadius: 2,
   },
-  thresholdLineDown: {
+  thresholdDown: {
     position: 'absolute',
     top: '60%',
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: '#FF9800',
-    opacity: 0.5,
+    left: 4,
+    right: 4,
+    height: 3,
+    backgroundColor: '#FF5722',
+    borderRadius: 2,
   },
-  motionIndicator: {
+  meterIndicator: {
     position: 'absolute',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     left: 2,
-    marginTop: -18,
+    marginTop: -21,
     borderWidth: 3,
     borderColor: '#FFF',
-  },
-  motionLabelsVertical: {
-    marginTop: 8,
-    alignItems: 'center',
-  },
-  labelUp: {
-    color: '#4CAF50',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  labelDown: {
-    color: '#FF9800',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginTop: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
   },
   debugText: {
     color: '#888',
-    fontSize: 10,
-    marginTop: 8,
+    fontSize: 11,
+    marginTop: 12,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   instructionsBox: {
-    backgroundColor: 'rgba(0,0,0,0.85)',
+    backgroundColor: 'rgba(0,0,0,0.9)',
     borderRadius: 16,
     padding: 16,
     marginTop: 20,
@@ -301,12 +350,14 @@ const styles = StyleSheet.create({
     color: '#FFD700',
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   instructionsText: {
     color: '#CCC',
     fontSize: 13,
     marginVertical: 3,
+    lineHeight: 20,
   },
   permissionContainer: {
     flex: 1,
