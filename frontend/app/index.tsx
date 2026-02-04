@@ -5,10 +5,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  Image,
+  ImageBackground,
   Alert,
   Platform,
-  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
