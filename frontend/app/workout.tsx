@@ -1830,4 +1830,140 @@ const styles = StyleSheet.create({
   pausedButton: {
     backgroundColor: '#4CAF50',
   },
+  // Count mode selector styles
+  countModeSelector: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  countModeBtn: {
+    flex: 1,
+    minWidth: 90,
+    maxWidth: 110,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 2,
+    borderColor: '#333',
+  },
+  countModeBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFF',
+    textAlign: 'center',
+  },
+  // AI Mode styles
+  aiModeActive: {
+    backgroundColor: '#00FF00',
+    borderColor: '#00FF00',
+  },
+  aiModeInfo: {
+    backgroundColor: 'rgba(0,255,0,0.1)',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#00FF00',
+  },
+  aiModeInfoTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#00FF00',
+    marginBottom: 8,
+  },
+  aiModeInfoText: {
+    fontSize: 13,
+    color: '#CCC',
+    marginVertical: 2,
+  },
+  aiModeInfoNote: {
+    fontSize: 12,
+    color: '#FF9800',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  // AI Debug display during workout
+  aiDebugContainer: {
+    position: 'absolute',
+    bottom: 250,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    gap: 8,
+  },
+  aiDebugBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#00FF00',
+  },
+  aiDebugText: {
+    fontSize: 12,
+    color: '#00FF00',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  poseStateBadge: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 30,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  poseStateUp: {
+    backgroundColor: '#4CAF50',
+  },
+  poseStateDown: {
+    backgroundColor: '#FF9800',
+  },
+  poseStateText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  // AI Mode controls during workout
+  aiModeControls: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  aiStatusContainer: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 32,
+    paddingVertical: 20,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#00FF00',
+  },
+  aiStatusText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#00FF00',
+    marginTop: 8,
+  },
+  aiStatusSubtext: {
+    fontSize: 14,
+    color: '#888',
+    marginTop: 4,
+  },
+  manualFallbackBtn: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#666',
+  },
+  manualFallbackText: {
+    fontSize: 14,
+    color: '#888',
+  },
 });
