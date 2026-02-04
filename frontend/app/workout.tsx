@@ -118,6 +118,13 @@ export default function WorkoutScreen() {
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [mediaLibraryPermission, requestMediaLibraryPermission] = MediaLibrary.usePermissions();
 
+  // AI Pose Detection state for pushups
+  const [pushupState, setPushupState] = useState<PushupState>('UP');
+  const [avgShoulderY, setAvgShoulderY] = useState<number | null>(null);
+  const [poseDebugInfo, setPoseDebugInfo] = useState<string>('Waiting for pose...');
+  const pushupStateRef = useRef<PushupState>('UP');
+  const repCountRef = useRef(0);
+
   useEffect(() => {
     loadSound();
     loadCustomRecordings();
