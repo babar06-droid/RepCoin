@@ -13,10 +13,12 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+const REP_POINTS_KEY = '@rep_points';
 
 interface WalletData {
   total_coins: number;
@@ -50,7 +52,7 @@ export default function WalletScreen() {
   });
   const [sessions, setSessions] = useState<Session[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [repPoints, setRepPoints] = useState(0);
+  const [repPoints, setRepPoints] = useState<number | null>(null);
 
   // Animations
   const coinScale = useRef(new Animated.Value(0)).current;
