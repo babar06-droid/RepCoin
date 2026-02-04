@@ -14,33 +14,45 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Sharing from 'expo-sharing';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+const REP_POINTS_KEY = '@rep_points';
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [repPoints, setRepPoints] = useState(0);
+  const [repPoints, setRepPoints] = useState<number | null>(null);
   const [totalWorkouts, setTotalWorkouts] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load REP points from AsyncStorage on mount
+  useEffect(() => {
+    loadRepPointsFromStorage();
+  }, []);
 
   // Auto-refresh REP points when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      fetchRepPoints();
+      loadRepPointsFromStorage();
       fetchStats();
     }, [])
   );
 
-  const fetchRepPoints = async () => {
+  const loadRepPointsFromStorage = async () => {
     try {
-      const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/wallet`);
-      const data = await res.json();
-      if (data.rep_points !== undefined) {
-        setRepPoints(data.rep_points);
+      const storedRep = await AsyncStorage.getItem(REP_POINTS_KEY);
+      if (storedRep !== null) {
+        setRepPoints(parseInt(storedRep, 10));
+      } else {
+        setRepPoints(0);
       }
     } catch (error) {
-      console.log('Fetch rep points error:', error);
+      console.log('Load rep points error:', error);
+      setRepPoints(0);
+    } finally {
+      setIsLoading(false);
     }
   };
 
